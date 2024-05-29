@@ -1,0 +1,1 @@
+pipeline_ngsmanager.nf

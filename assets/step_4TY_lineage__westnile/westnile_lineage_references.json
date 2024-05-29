@@ -1,0 +1,56 @@
+[
+   {
+      "ref_code": "FJ483548.1",
+      "lineage": "1",
+      "ref_riscd": "220307-020220307183436442-2AS_import-external",
+      "ref_path": "FJ483548.fasta"
+   },
+   {
+      "ref_code": "HQ537483.1",
+      "lineage": "2",
+      "ref_riscd": "220307-020220307183446696-2AS_import-external",
+      "ref_path": "HQ537483.fasta"
+   },
+   {
+      "ref_code": "AY765264.1",
+      "lineage": "3",
+      "ref_riscd": "220511-020220511185039641-2AS_import-external",
+      "ref_path": "AY765264.fasta"
+   },
+   {
+      "ref_code": "AY277251.1",
+      "lineage": "4",
+      "ref_riscd": "220511-020220511185055606-2AS_import-external",
+      "ref_path": "AY277251.fasta"
+   },
+   {
+      "ref_code": "GQ851605.1",
+      "lineage": "5",
+      "ref_riscd": "220511-020220511185113586-2AS_import-external",
+      "ref_path": "GQ851605.fasta"
+   },
+   {
+      "ref_code": "GU047875.1",
+      "lineage": "6",
+      "ref_riscd": "220511-020220511185126243-2AS_import-external",
+      "ref_path": "GU047875.fasta"
+   },
+   {
+      "ref_code": "KY703855.1",
+      "lineage": "7",
+      "ref_riscd": "220511-02022051118514491-2AS_import-external",
+      "ref_path": "KY703855.fasta"
+   },
+   {
+      "ref_code": "KY703856.1",
+      "lineage": "8",
+      "ref_riscd": "220511-020220511185227935-2AS_import-external",
+      "ref_path": "KY703856.fasta"
+   },
+   {
+      "ref_code": "KJ831223.1",
+      "lineage": "9",
+      "ref_riscd": "220511-020220511185239860-2AS_import-external",
+      "ref_path": "KJ831223.fasta"
+   }
+]

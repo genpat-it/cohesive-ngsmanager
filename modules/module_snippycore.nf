@@ -1,0 +1,1 @@
+../multi/multi_alignment__snippycore.nf
