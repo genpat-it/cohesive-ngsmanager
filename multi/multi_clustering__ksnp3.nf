@@ -8,7 +8,7 @@ def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_alia
 def SAMPLE_COLUMN = param('multi_clustering__reportree__summary_sample_column')
 
 process ksnp3 {
-    container "${LOCAL_REGISTRY}/bioinfo/ksnp3:3.0--addd2c2d0e"
+    container "ghcr.io/genpat-it/ksnp3:3.0--addd2c2d0e"
     input:
       path(assembly)
       val(kmers_size)

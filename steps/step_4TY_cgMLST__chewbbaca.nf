@@ -80,7 +80,7 @@ def getSchema(gsp, schema) {
 }
 
 process chewbbaca {
-    container "${LOCAL_REGISTRY}/bioinfo/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
+    container "ghcr.io/genpat-it/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
     memory { taskMemory( 8.GB, task.attempt ) }
     time { taskTime( 30.m, task.attempt ) }    
     cpus { [32, params.max_cpus as int].min() }
@@ -149,7 +149,7 @@ process chewbbaca_check {
 }
 
 process hashing {
-    container "${LOCAL_REGISTRY}/bioinfo/hashing:1.0--29180a232f"    
+    container "ghcr.io/genpat-it/hashing:1.0--29180a232f"    
     memory { taskMemory( 2.GB, task.attempt ) }
     time { taskTime( 10.m, task.attempt ) }    
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"

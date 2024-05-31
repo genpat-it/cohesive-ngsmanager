@@ -10,7 +10,7 @@ def STEP = '1PP_filtering'
 def METHOD = 'bowtie' 
 
 process bowtie2 {
-    container "${LOCAL_REGISTRY}/bioinfo/bowtie2:2.1.0--37ad014737"
+    container "ghcr.io/genpat-it/bowtie2:2.1.0--37ad014737"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 1.GB, task.attempt ) }
     when:

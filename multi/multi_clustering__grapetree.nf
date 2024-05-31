@@ -8,7 +8,7 @@ def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_alia
 def SAMPLE_COLUMN = param('multi_clustering__reportree__summary_sample_column')
 
 process extract_cgMLST {
-    container "${LOCAL_REGISTRY}/bioinfo/chewbbaca-w-schemas:2.8.5--7742d1fae0"
+    container "ghcr.io/genpat-it/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
     memory { taskMemory( 5.GB, task.attempt ) }
     input:
       path(alleles)

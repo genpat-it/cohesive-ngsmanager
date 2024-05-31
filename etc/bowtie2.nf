@@ -6,7 +6,7 @@ include { param } from '../functions/parameters.nf'
 log.info logHeader('NGSMANAGER')
 
 process bowtie2_index {
-    container "${LOCAL_REGISTRY}/bioinfo/bowtie2:2.1.0--37ad014737"
+    container "ghcr.io/genpat-it/bowtie2:2.1.0--37ad014737"
     input:
       val(ref)
       path(fasta)

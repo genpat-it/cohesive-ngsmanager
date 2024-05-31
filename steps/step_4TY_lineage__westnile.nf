@@ -57,7 +57,7 @@ def getWNVReferences() {
 }
 
 process snippy {
-    container "${LOCAL_REGISTRY}/bioinfo/snippy:4.5.1--7be4a1c45a"
+    container "ghcr.io/genpat-it/snippy:4.5.1--7be4a1c45a"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 8.GB, task.attempt ) }
     maxForks 4
@@ -121,7 +121,7 @@ process samtools_depth {
 }
 
 process lineage_selection {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 250.MB, task.attempt ) }

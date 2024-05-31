@@ -35,7 +35,7 @@ def isReferenceFilterable(refCode, _path) {
 }
 
 process filter {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 250.MB, task.attempt ) }

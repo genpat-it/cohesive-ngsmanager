@@ -4,7 +4,7 @@ include { taskMemory } from '../functions/common.nf'
 include { getVCFs } from '../functions/parameters.nf'
 
 process vcf2mst {
-    container "${LOCAL_REGISTRY}/bioinfo/vcf2mst:0.0.1--d587d682e9"
+    container "ghcr.io/genpat-it/vcf2mst:0.0.1--d587d682e9"
     memory { taskMemory( 4.GB, task.attempt ) }
     input:
       path(vcf_files)

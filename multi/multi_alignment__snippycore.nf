@@ -8,7 +8,7 @@ def ex = executionMetadata()
 def ENTRYPOINT = "multi_alignment__snippycore"
 
 process snippy {
-    container "${LOCAL_REGISTRY}/bioinfo/snippy:4.5.1--7be4a1c45a"
+    container "ghcr.io/genpat-it/snippy:4.5.1--7be4a1c45a"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 8.GB, task.attempt ) }
     when:
@@ -50,7 +50,7 @@ process snippy {
 
 
 process snippy_core {
-    container "${LOCAL_REGISTRY}/bioinfo/snippy:4.5.1--7be4a1c45a"
+    container "ghcr.io/genpat-it/snippy:4.5.1--7be4a1c45a"
     memory { taskMemory( 4.GB, task.attempt ) }
     input:
       path vcf_files, stageAs: 'data?'

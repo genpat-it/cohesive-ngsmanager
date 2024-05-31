@@ -11,7 +11,7 @@ def METHOD = 'pangolin'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process pangolin {
-    container "${LOCAL_REGISTRY}/bioinfo/pangolin:v4.3.1-v0.1.12-v0.3.17-v1.21"
+    container "ghcr.io/genpat-it/pangolin:v4.3.1-v0.1.12-v0.3.17-v1.21"
     containerOptions = "--user root"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 3.GB, task.attempt ) }

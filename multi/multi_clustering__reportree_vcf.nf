@@ -26,7 +26,7 @@ process prepare_metadata {
 }
 
 process reportree_gt {
-    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.4.1--088b6651b8"
+    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
     cpus { [32, params.max_cpus as int].min() }   
     input:
       path(vcfs)
@@ -80,7 +80,7 @@ process reportree_gt {
 }
 
 process reportree_hc {
-    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.4.1--088b6651b8"
+    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
     cpus { [32, params.max_cpus as int].min() }   
     input:
       path(vcfs)
@@ -118,7 +118,7 @@ process reportree_hc {
 }
 
 process find_closest {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/multi_clustering__reportree:/scripts:ro"
     memory { taskMemory( 1.GB, task.attempt ) }
     input:

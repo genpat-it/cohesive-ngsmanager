@@ -16,7 +16,7 @@ def GENUS_ALLOWED = [
 ]
 
 process confindr {
-    container "${LOCAL_REGISTRY}/bioinfo/confindr:0.7.4--8fe19dd246"
+    container "ghcr.io/genpat-it/confindr:0.7.4--8fe19dd246"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 24.GB, task.attempt ) }
     cpus  16

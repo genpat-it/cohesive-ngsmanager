@@ -11,7 +11,7 @@ def METHOD = 'mlst'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process mlst {
-    container "${LOCAL_REGISTRY}/bioinfo/mlst-w-db:2.23.0--60b8b2e3dd_231219.124455"
+    container "ghcr.io/genpat-it/mlst-w-db:2.23.0--60b8b2e3dd_231219.124455"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 4.GB, task.attempt ) }

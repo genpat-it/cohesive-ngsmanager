@@ -37,7 +37,7 @@ process minimap2 {
 }
 
 process samtools {
-    container "${LOCAL_REGISTRY}/bioinfo/samtools:0.1.19--f3869562fe"
+    container "ghcr.io/genpat-it/samtools:0.1.19--f3869562fe"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     //memory { taskMemory( 6.GB, task.attempt ) }
       input:
@@ -66,7 +66,7 @@ process samtools {
 }
 
 process seqio {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 250.MB, task.attempt ) }
     input:
@@ -99,7 +99,7 @@ process seqio {
 
 
 process coverage_minmax {
-    container "${LOCAL_REGISTRY}/bioinfo/samtools:0.1.19--f3869562fe"
+    container "ghcr.io/genpat-it/samtools:0.1.19--f3869562fe"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 4.GB, task.attempt ) }
@@ -146,7 +146,7 @@ process samtools_depth {
 
 
 process coverage_check {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 200.MB, task.attempt ) }

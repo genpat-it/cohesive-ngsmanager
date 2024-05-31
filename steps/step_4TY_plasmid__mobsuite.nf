@@ -11,7 +11,7 @@ def METHOD = 'mobsuite'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process mobsuite {
-    container "${LOCAL_REGISTRY}/bioinfo/mobsuite:3.1.4--c2c728b1a2"
+    container "ghcr.io/genpat-it/mobsuite:3.1.4--c2c728b1a2"
     memory { taskMemory( 4.GB, task.attempt ) }
     cpus { [32, params.max_cpus as int].min() }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"

@@ -10,7 +10,7 @@ def METHOD = 'snippy'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process snippy {
-    container "${LOCAL_REGISTRY}/bioinfo/snippy:4.5.1--7be4a1c45a"
+    container "ghcr.io/genpat-it/snippy:4.5.1--7be4a1c45a"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 8.GB, task.attempt ) }
     maxForks 4

@@ -39,7 +39,7 @@ def getPointfinderParam(gsp) {
 }
 
 process staramr {
-    container "${LOCAL_REGISTRY}/bioinfo/staramr:0.9.1--8fe6b5a239"
+    container "ghcr.io/genpat-it/staramr:0.9.1--8fe6b5a239"
     containerOptions = "--user root"
     tag "${riscd_input}/${plasmid_name}"
     memory { taskMemory( 2.GB, task.attempt ) }

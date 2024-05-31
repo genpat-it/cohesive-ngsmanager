@@ -10,7 +10,7 @@ def METHOD = 'mash'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process mash {
-    container "${LOCAL_REGISTRY}/bioinfo/mash:2.3--debdd7eb23"
+    container "ghcr.io/genpat-it/mash:2.3--debdd7eb23"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 10.GB, task.attempt ) }
     cpus { [8, params.max_cpus as int].min() }

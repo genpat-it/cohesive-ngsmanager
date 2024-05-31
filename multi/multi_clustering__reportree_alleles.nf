@@ -9,7 +9,7 @@ def SAMPLE_COLUMN = param('multi_clustering__reportree__summary_sample_column')
 def GEO_RESOLUTION_COLUMNS = param('multi_clustering__reportree__summary_geo_column')  
 
 process merge_profiles {
-    container "${LOCAL_REGISTRY}/bioinfo/chewbbaca-w-schemas:2.8.5--7742d1fae0"
+    container "ghcr.io/genpat-it/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
     memory { taskMemory( 1.GB, task.attempt ) }
     input:
       path(profiles)
@@ -45,7 +45,7 @@ process prepare_metadata {
 }
 
 process reportree_gt {
-    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.4.1--088b6651b8"
+    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
     cpus { [32, params.max_cpus as int].min() }   
     input:
       path(profiles)
@@ -91,7 +91,7 @@ process reportree_gt {
 }
 
 process reportree_hc {
-    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.4.1--088b6651b8"
+    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
     cpus { [32, params.max_cpus as int].min() }   
     input:
       path(profiles)
@@ -123,7 +123,7 @@ process reportree_hc {
 }
 
 process find_closest {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/multi_clustering__reportree:/scripts:ro"
     memory { taskMemory( 1.GB, task.attempt ) }
     input:
