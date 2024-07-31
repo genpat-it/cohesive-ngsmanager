@@ -11,7 +11,7 @@ def METHOD = 'bowtie'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process bowtie2 {
-    container "ghcr.io/genpat-it/bowtie2:2.1.0--37ad014737"
+    container "biocontainers/bowtie2:v2.4.1_cv1"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 1.GB, task.attempt ) }
     when:
