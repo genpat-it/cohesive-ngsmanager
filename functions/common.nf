@@ -299,8 +299,8 @@ def stepInputs(riscd_input, md, ex, step, method, opt) {
 
 def isFastqRiscd(riscd) {
     try {
-        acc = parseRISCD(riscd)?.acc;
-        return acc ==~ /0SQ.+/
+        def acc = parseRISCD(riscd)?.acc;
+        return acc ==~ /0SQ.+/ || acc ==~ /1PP.+/
     } catch(Throwable t) {
         exit 1,  "could not execute isFastqRiscd for input: ${riscd}, error: ${t}"
     }
@@ -308,8 +308,17 @@ def isFastqRiscd(riscd) {
 
 def isFastaRiscd(riscd) {
     try {
-        acc = parseRISCD(riscd)?.acc;
+        def acc = parseRISCD(riscd)?.acc 
         return acc ==~ /2AS.+/
+    } catch(Throwable t) {
+        exit 1,  "could not execute isFastaRiscd for input: ${riscd}, error: ${t}"
+    }
+}
+
+def isImportedRiscd(riscd) {
+    try {
+        def met = parseRISCD(riscd)?.met;
+        return met == 'external'
     } catch(Throwable t) {
         exit 1,  "could not execute isFastaRiscd for input: ${riscd}, error: ${t}"
     }
@@ -339,4 +348,17 @@ def isSpeciesSupported(gsp, whitelist, reads, entrypoint) {
   } catch(Throwable t) {
       exit 1, "unexpected exception: ${t.asString()}"
   } 
+}
+
+def filename(input) {
+    if (input instanceof java.util.Collection) {
+        return input.flatten()[0].getName()
+    } else if (input instanceof java.nio.file.Path) {
+        return input.toFile().getName()
+    } else if (input instanceof java.io.File) {
+        return input.getName()
+    } else {
+        // bad move
+        return input
+    }
 }

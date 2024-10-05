@@ -329,72 +329,82 @@ def getResult(cmp, riscd, filePattern) {
     def anno = cmp.substring(0,4)
     def md = parseRISCD(riscd)       
     def resChannel, path
-    if (md.acc in ['0SQ_rawreads', '1PP_hostdepl', '1PP_trimming', '1PP_filtering', '1PP_downsampling', '1PP_generated']) {
-        def pattern = (filePattern != null) ? filePattern :  "*.fastq*"
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+
+    if (filePattern != null) {
+        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${filePattern}"
         resChannel = Channel.fromPath(
                 path, checkIfExists: params.check_file_existence
         )        
-        .toSortedList( { a, b -> flattenPath(a.getName()) <=> flattenPath(b.getName()) } )             
-        .collect()
-        .map { [ riscd, it ] }
-    } else if (md.acc in ['2AS_import', '2AS_mapping']) {
-        def pattern = (filePattern != null) ? filePattern :  "*.fasta"
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
-        resChannel = Channel.fromPath(
-                path, checkIfExists: params.check_file_existence
-        )        
-        .first()
-        .collect()
-        .map { [ riscd, it ] }        
-    } else if (md.acc in ['2AS_hybrid']) {
-        def pattern = (filePattern != null) ? filePattern :  "*.fasta"
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
-        resChannel = Channel.fromPath(
-                path, checkIfExists: params.check_file_existence
-        )        
-        .first()
-        .collect()
-        .map { [ riscd, it ] }        
-    } else if (md.acc in ['2AS_denovo','2MG_denovo']) {
-        def pattern = (filePattern != null) ? filePattern :  (md.met in ['spades','plasmidspades','unicycler','metaspades'] ? "*L?00.fasta" : "*.fasta")
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
-        resChannel = Channel.fromPath(
-                path, checkIfExists: params.check_file_existence
-        )        
-        .first()
-        .collect()
-        .map { [ riscd, it ] }
-    } else if (md.acc in ['4AN_genes']) {
-        def pattern = (filePattern != null) ? filePattern :  "*.gff"
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
-        resChannel = Channel.fromPath(
-                path, checkIfExists: params.check_file_existence
-        )        
-        .first()
-        .collect()
-        .map { [ riscd, it ] }        
-    } else if (md.acc in ['4TY_cgMLST'] && md.met in ['chewbbaca']) {
-        def pattern = (filePattern != null) ? filePattern : "*_results_${params.allelic_profile_encoding}.?sv"
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
-        resChannel = Channel.fromPath(
-                path, checkIfExists: params.check_file_existence
-        )        
-        .first()
-        .collect()
-        .map { [ riscd, it ] }                
-    } else if (md.acc in ['4AN_AMR']) {
-        def pattern = (filePattern != null) ? filePattern :  "*abricate_calls.txt"
-        path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
-        resChannel = Channel.fromPath(
-                path, checkIfExists: params.check_file_existence
-        )        
-        .first()
         .collect()
         .map { [ riscd, it ] }        
     } else {
-        exit 2, "unexpected acc value: ${md.acc}"
-    }    
+        if (md.acc in ['0SQ_rawreads', '1PP_hostdepl', '1PP_trimming', '1PP_filtering', '1PP_downsampling', '1PP_generated']) {
+            def pattern = "*.fastq*"
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .toSortedList( { a, b -> flattenPath(a.getName()) <=> flattenPath(b.getName()) } )             
+            .collect()
+            .map { [ riscd, it ] }
+        } else if (md.acc in ['2AS_import', '2AS_mapping']) {
+            def pattern = "*.fasta"
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .first()
+            .collect()
+            .map { [ riscd, it ] }        
+        } else if (md.acc in ['2AS_hybrid']) {
+            def pattern = "*.fasta"
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .first()
+            .collect()
+            .map { [ riscd, it ] }        
+        } else if (md.acc in ['2AS_denovo','2MG_denovo']) {
+            def pattern = (md.met in ['spades','plasmidspades','unicycler','metaspades'] ? "*L?00.fasta" : "*.fasta")
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .first()
+            .collect()
+            .map { [ riscd, it ] }
+        } else if (md.acc in ['4AN_genes']) {
+            def pattern = "*.gff"
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .first()
+            .collect()
+            .map { [ riscd, it ] }        
+        } else if (md.acc in ['4TY_cgMLST', '4TY_wgMLST'] && md.met in ['chewbbaca']) {
+            def pattern = "*_results_${params.allelic_profile_encoding}.?sv"
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .first()
+            .collect()
+            .map { [ riscd, it ] }                
+        } else if (md.acc in ['4AN_AMR']) {
+            def pattern = "*abricate_calls.txt"
+            path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${pattern}"
+            resChannel = Channel.fromPath(
+                    path, checkIfExists: params.check_file_existence
+            )        
+            .first()
+            .collect()
+            .map { [ riscd, it ] }        
+        } else {
+            exit 2, "unexpected acc value: ${md.acc}"
+        }    
+    }
     resChannel.ifEmpty { 
         log.warn("file not found: '${path}'")
     }
@@ -411,6 +421,18 @@ def _getAlleles(cmp, riscd, schema) {
         log.warn("file not found: '${path}'")
     }
     return resChannel
+}
+
+def getAllelicProfile(cmp, riscd, schema) {
+    def md = parseRISCD(riscd)           
+    def filePattern = schema ? "*_results_${schema}.?sv" : "*results_alleles.?sv"
+    def anno = cmp.substring(0,4)
+    def path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${filePattern}"
+    def resChannel = Channel.fromPath(path, checkIfExists: params.check_file_existence)
+    resChannel.ifEmpty { 
+        log.warn("file not found: '${path}'")
+    }
+    return resChannel.map { [ riscd, it ] }
 }
 
 def getKrakenResults() {
@@ -457,7 +479,11 @@ def getInput() {
     if (params.containsKey('input')) {
         assert params.input instanceof ArrayList
         params.input.inject (Channel.empty()) {
-            res, val -> res.mix(getResult(val.cmp, val.riscd, null))
+            res, val -> if (val.cmp) {
+                res.mix(getResult(val.cmp, val.riscd, null))
+            } else {
+                res.mix(getInputFromPaths(val.key, val.paths))
+            }
         }        
     } else if (params.containsKey('cmp') && params.containsKey('riscd')) {
         getResult(params.cmp, params.riscd, null)
@@ -484,8 +510,8 @@ def getSingleInput() {
 def hasEnoughFastqData(rawreads) {
   try {
     def (r1,r2, r3, r4) = (rawreads instanceof java.util.Collection) ? rawreads : [rawreads,null]
-    sizeR1 = r1.toRealPath().countFastq()
-    sizeR2 = r2 ? r2.toRealPath().countFastq() : null
+    def sizeR1 = r1.toRealPath().countFastq()
+    def sizeR2 = r2 ? r2.toRealPath().countFastq() : null
     log.debug "${r1}, size: ${sizeR1}"
     if (sizeR1 <= params.raw_reads_threshold && (sizeR2 == null || sizeR2 <= params.raw_reads_threshold)) {
       log.warn "Insufficient number of reads after trimming in: ${r1} (${sizeR1}) ${r2 ?: '-'} (${sizeR2 == null ? '-' : sizeR2}) (threshold: ${params.raw_reads_threshold})"
@@ -500,8 +526,8 @@ def hasEnoughFastqData(rawreads) {
 def hasFastqData(rawreads) {
   try {
     def (r1,r2) = (rawreads instanceof java.util.Collection) ? rawreads : [rawreads,null]
-    sizeR1 = r1.toRealPath().countFastq()
-    sizeR2 = r2 ? r2.toRealPath().countFastq() : null
+    def sizeR1 = r1.toRealPath().countFastq()
+    def sizeR2 = r2 ? r2.toRealPath().countFastq() : null
     log.debug "${r1}, size: ${sizeR1}"
     if (sizeR1 == 0 && (sizeR2 == null || sizeR2 == 0)) {
       log.warn "No processable reads found in: ${r1} ${r2}"
@@ -521,10 +547,30 @@ def optional(paramName) {
     _getParamAsValue(paramName, true, '')
 }
 
+def optionalBoolean(paramName) {
+   def val = optionalOrDefault(paramName, false)
+   return val && !val.toString().trim().equalsIgnoreCase("false")
+}
+
 def optionalOrDefault(paramName, defaultValue) {
     _getParamAsValue(paramName, true, defaultValue)
 }
 
+def optionalOption(prefix, paramName) {
+    def val = _getParamAsValue(prefix + paramName, true, '')
+    if (!val) {
+        return '';
+    } 
+    return " --${paramName} ${val} "
+}
+
+def optionalOptionWithKey(prefix, optionKey, paramName) {
+    def val = _getParamAsValue(prefix + paramName, true, '')
+    if (!val) {
+        return '';
+    } 
+    return "--${optionKey} ${val}"
+}
 
 def isIonTorrent(reads) {
    try {  
@@ -661,4 +707,12 @@ def optWrap(paramName, wrap) {
         return ''
     }
     return wrap.replace('{}', "${val}")
+}
+
+def getInputFromPaths(key, paths) {
+    return Channel.fromPath(
+            paths, checkIfExists: params.check_file_existence
+    )        
+    .collect()
+    .map { [ key, it ] }
 }
