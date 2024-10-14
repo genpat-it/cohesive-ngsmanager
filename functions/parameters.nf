@@ -335,8 +335,9 @@ def getResult(cmp, riscd, filePattern) {
         resChannel = Channel.fromPath(
                 path, checkIfExists: params.check_file_existence
         )        
+        .toSortedList( { a, b -> flattenPath(a.getName()) <=> flattenPath(b.getName()) } )  
         .collect()
-        .map { [ riscd, it ] }        
+        .map { [ riscd, it ] }       
     } else {
         if (md.acc in ['0SQ_rawreads', '1PP_hostdepl', '1PP_trimming', '1PP_filtering', '1PP_downsampling', '1PP_generated']) {
             def pattern = "*.fastq*"
