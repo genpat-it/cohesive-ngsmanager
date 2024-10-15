@@ -87,12 +87,22 @@ process iqtree {
       path '*'
       path '{*.sh,*.log}', hidden: true
       path '*.treefile', emit: nwk
-    publishDir mode: 'copy', "${params.outdir}/result", pattern: '*.treefile', saveAs: { "snpma.nwk" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.ufboot', saveAs: { "iqtree.ufboot" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.mldist', saveAs: { "iqtree.mldist" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.treefile', saveAs: { "iqtree.nwk" } 
+    publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '*.iqtree', saveAs: { "iqtree_report.txt" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.log', saveAs: { "iqtree.log" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "iqtree.cfg" }
     script:
       """
-        iqtree -s ${snpma} -nt AUTO
+        iqtree \
+          -s ${snpma} \
+          -nt AUTO \
+          -st DNA \
+          -m MFP \
+          --ufboot 1000 \
+          --wbtl \
+          --bnni 
       """
 }
 

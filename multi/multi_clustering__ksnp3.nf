@@ -35,20 +35,29 @@ process ksnp3 {
 }
 
 process iqtree {
-    container "quay.io/biocontainers/iqtree:1.6.12--he513fc3_0"
+    container 'quay.io/biocontainers/iqtree:2.3.6--hdbdd923_0'
     input:
       path(fasta)
     output:
       path '*'
       path '{*.sh,*.log}', hidden: true
       path("*.treefile"), emit: nwk
-    publishDir mode: 'copy', "${params.outdir}", pattern: '*.treefile', saveAs: { "matrix.nwk" } 
-    publishDir mode: 'copy', "${params.outdir}", pattern: '*.treefile', saveAs: { filename -> filename.replace(".treefile", ".nwk") } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.ufboot', saveAs: { "iqtree.ufboot" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.mldist', saveAs: { "iqtree.mldist" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.treefile', saveAs: { "iqtree.nwk" } 
+    publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '*.iqtree', saveAs: { "iqtree_report.txt" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.log', saveAs: { "iqtree.log" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "iqtree.cfg" }
     script:
       """
-        iqtree -nt AUTO -s ${fasta}      
+        iqtree \
+          -s ${fasta} \
+          -nt AUTO \
+          -st DNA \
+          -m MFP \
+          --ufboot 1000 \
+          --wbtl \
+          --bnni 
         sed -i 's/-/./g' *.treefile
       """
 }

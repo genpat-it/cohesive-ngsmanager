@@ -40,7 +40,7 @@ process cfsan_snp_pipeline {
 }
 
 process iqtree {
-    container "quay.io/biocontainers/iqtree:1.6.12--he513fc3_0"
+    container 'quay.io/biocontainers/iqtree:2.3.6--hdbdd923_0'
     stageInMode 'copy'
     input:
       path(snpma)
@@ -48,12 +48,22 @@ process iqtree {
       path '*'
       path '{*.sh,*.log}', hidden: true
       path("snpma.fasta.treefile"), emit: nwk
-    publishDir mode: 'copy', "${params.outdir}/result", pattern: 'snpma.fasta.treefile', saveAs: { "snpma.fasta.nwk" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.ufboot', saveAs: { "iqtree.ufboot" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.mldist', saveAs: { "iqtree.mldist" } 
+    publishDir mode: 'rellink', "${params.outdir}/result", pattern: '*.treefile', saveAs: { "iqtree.nwk" } 
+    publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '*.iqtree', saveAs: { "iqtree_report.txt" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.log', saveAs: { "iqtree.log" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "iqtree.cfg" }
     script:
       """
-        iqtree -s ${snpma} -nt AUTO
+        iqtree \
+          -s ${snpma} \
+          -nt AUTO \
+          -st DNA \
+          -m MFP \
+          --ufboot 1000 \
+          --wbtl \
+          --bnni
       """
 }
 
