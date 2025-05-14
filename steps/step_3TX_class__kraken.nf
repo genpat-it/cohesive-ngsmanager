@@ -1,12 +1,12 @@
 nextflow.enable.dsl=2
 
 include { getEmpty;flattenPath; parseMetadataFromFileName; executionMetadata;taskMemory } from '../functions/common.nf'
-include { isSarsCov2;isPositiveControlSarsCov2;isNegativeControlSarsCov2;isNGSMG16S } from '../functions/sampletypes'
-include { param;isFullOutput;getSingleInput;isIlluminaPaired;isCompatibleWithSeqType;isIonTorrent } from '../functions/parameters'
+include { isSarsCov2;isPositiveControlSarsCov2;isNegativeControlSarsCov2;isNGSMG16S } from '../functions/samplesheet'
+include { isFullOutput;getSingleInput;isIlluminaPaired;isCompatibleWithSeqType;isIonTorrent } from '../functions/parameters'
 include { stepInputs;getRisCd } from '../functions/common.nf'
 
-def db_kraken=param('step_3TX_class__kraken__db_kraken')
-def db_bracken=param('step_3TX_class__kraken__db_bracken')
+def db_kraken="/biowork/databases/PROGRAMS/kraken/minikraken_20171019_8GB/"
+def db_bracken="/biowork/databases/PROGRAMS/Bracken-master/minikraken_8GB_125mers_distrib.txt"
 
 def ex = executionMetadata()
 
@@ -16,7 +16,7 @@ def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process kraken {
     container "quay.io/biocontainers/kraken:1.0--pl5.22.0_0"
-    containerOptions = "-v ${db_kraken}:${db_kraken}:ro"
+    containerOptions = "-v /biowork:/biowork:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 8.GB, task.attempt ) }
     when:
@@ -46,7 +46,7 @@ process kraken {
 
 process braken {
     container "quay.io/biocontainers/bracken:1.0.0--1"
-    containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro -v ${db_bracken}:${db_bracken}:ro"
+    containerOptions = "-v /biowork:/biowork:ro -v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 3.GB, task.attempt ) }
     input:
@@ -72,8 +72,7 @@ process braken {
 workflow step_3TX_class__kraken {
     take: reads
     main:
-      report = kraken(reads).report 
-      braken(report)
+      kraken(reads).report | braken
      emit:
        genus_report = braken.out.genus_report
 }

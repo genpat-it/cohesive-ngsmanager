@@ -1,12 +1,30 @@
 nextflow.enable.dsl=2
 
-include { taskMemory } from '../functions/common.nf'
-include { getVCFs } from '../functions/parameters.nf'
+include { taskMemory;filename } from '../functions/common.nf'
+include { getVCFs;param;optional;optionalBoolean } from '../functions/parameters.nf'
+
+def METADATA_ID_FULL = param('metadata_with_full_id') as boolean
+
+process bcftools {
+    container "quay.io/biocontainers/bcftools:1.21--h8b25389_0"
+    memory { taskMemory( 2.GB, task.attempt ) }
+    input:
+      tuple val(riscd), path(vcf)
+    output:
+      tuple val(riscd), path("${vcf}.filtered"), emit: filtered_vcf
+    script:
+      """
+      bcftools norm -a ${vcf} -o decomposed_complex.vcf
+      bcftools view -v snps decomposed_complex.vcf -o snps_only.vcf
+      bcftools norm -m +any snps_only.vcf -o "${vcf}.filtered"
+	    """
+}
 
 process vcf2mst {
-    container "ghcr.io/genpat-it/vcf2mst:0.0.1--d587d682e9"
+    container "${LOCAL_REGISTRY}/bioinfo/vcf2mst:0.0.1--d587d682e9"
     memory { taskMemory( 4.GB, task.attempt ) }
     input:
+      path(summary)
       path(vcf_files)
     output:
       path '*'
@@ -16,11 +34,19 @@ process vcf2mst {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '*.log'
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "vcf2mst.cfg" }
     script:
+      extra = optional('multi_clustering__vcf2mst__extra')
       """
-        mkdir vcf_files 
-        for FILE in ${vcf_files}; do CMP=`echo \$FILE | sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([[:digit:]]+\\.[[:alnum:]]+\\.[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+).+/\\1/'`; cp \$FILE vcf_files/\${CMP} ; done
-        find vcf_files -mindepth 1 > vcf_list            
-        vcf2mst.pl vcf_list tree.nwk vcf > vcf2mst.log
+        while IFS=\$'\t' read -r key file; do
+            if (${METADATA_ID_FULL}); then
+                KEY=\$key
+            else
+                KEY=\$(sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_.+/\\1/' <<< "\$file")
+            fi
+            mv \$file \${KEY}
+            echo "\${KEY}" 
+        done < ${summary} > vcf_files.txt
+
+        vcf2mst.pl vcf_files.txt tree.nwk vcf ${extra} > vcf2mst.log
         cp /tmp/hamming_distance_matrix.tsv HDmatrix.tsv
       """
 }
@@ -45,16 +71,20 @@ process dists {
 
 workflow multi_clustering__vcf2mst {
     take: 
-        input
+      input
     main:
-        matrix=vcf2mst(input).matrix
-        dists(matrix)
+      if (optionalBoolean('multi_clustering__vcf2mst__vcf_normalization')) {
+        vcf_input = bcftools(input).filtered_vcf
+      } else {
+        vcf_input = input
+      }
+      summary = vcf_input.collectFile { [ "summary.tsv", it[0] + '\t' + filename(it[1]) + '\n' ] }
+      files= vcf_input.collect { it[1] }
+
+      matrix=vcf2mst(summary, files).matrix
+      dists(matrix)
 }
 
 workflow {
-    getVCFs()
-    .map { it[1] }
-    .collect()
-    .set { inputSet }
-    multi_clustering__vcf2mst(inputSet)
+    multi_clustering__vcf2mst(getVCFs())
 }

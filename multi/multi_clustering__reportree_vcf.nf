@@ -1,12 +1,14 @@
 nextflow.enable.dsl=2
 
-include { taskMemory;getEmpty } from '../functions/common.nf'
-include { _getAlleles;param;optional;optionalOrDefault;getVCFs } from '../functions/parameters.nf'
+include { taskMemory;getEmpty;filename } from '../functions/common.nf'
+include { _getAlleles;param;optional;optionalBoolean;optionalOrDefault;getVCFs } from '../functions/parameters.nf'
 
-def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_aliases')  
+def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_aliases').tokenize(',\s').join('|')  
 def SUMMARY_COLUMNS = param('multi_clustering__reportree__summary_columns')  
-def SAMPLE_COLUMN = param('multi_clustering__reportree__summary_sample_column')  
+def ID_COLUMN = param('metadata_id_column')  
 def GEO_RESOLUTION_COLUMNS = param('multi_clustering__reportree__summary_geo_column')  
+
+def METADATA_ID_FULL = param('metadata_with_full_id') as boolean
 
 process prepare_metadata {
     container "ubuntu:20.04"
@@ -20,15 +22,38 @@ process prepare_metadata {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.log', saveAs: { "prepare_metadata.log" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "prepare_metadata.cfg" }
     script:
+      soi = optional('multi_clustering__reportree__sample_of_interest').replaceAll(/[\s\n\t\r"'$\{]/, "")	
+      if (soi) {
+        """
+          awk -v SOI="${soi}," 'BEGIN{ FS=OFS="\\t" } {\$1 = \$1 FS (NR==1? "group" : (index(SOI, \$1",")? "sample of interest" : "other")) }1' ${metadata} | sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' > reportree_metadata.tsv	
+        """
+      } else {
+        """
+          sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' ${metadata} > reportree_metadata.tsv
+        """
+      }
+}
+
+process bcftools {
+    container "quay.io/biocontainers/bcftools:1.21--h8b25389_0"
+    memory { taskMemory( 2.GB, task.attempt ) }
+    input:
+      tuple val(riscd), path(vcf)
+    output:
+      tuple val(riscd), path("${vcf}.filtered"), emit: filtered_vcf
+    script:
       """
-         sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' ${metadata} > reportree_metadata.tsv
-      """
+      bcftools norm -a ${vcf} -o decomposed_complex.vcf
+      bcftools view -v snps decomposed_complex.vcf -o snps_only.vcf
+      bcftools norm -m +any snps_only.vcf -o "${vcf}.filtered"
+	    """
 }
 
 process reportree_gt {
-    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
-    cpus { [32, params.max_cpus as int].min() }   
+    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.5.4--0f5f86c689"
+    cpus 64     
     input:
+      path(summary)
       path(vcfs)
       path(metadata)
       path(nomenclature_path), stageAs: 'prev_nomenclature.tsv'
@@ -49,18 +74,20 @@ process reportree_gt {
       zoom_par = zoom ? " --zoom-cluster-of-interest  ${zoom}" : ''
       zoom_subtree = optional('multi_clustering__reportree__subtree-of-interest').replaceAll(/[\s\n\t\r"'$\{]/, "")
       zoom_subtree_par = zoom_subtree ? " --subtree-of-interest  ${zoom_subtree}" : ''
-      lociCalled = param('multi_clustering__reportree__loci_called')   
-      siteInclusion = param('multi_clustering__reportree__site_inclusion')   
       extra = optional('multi_clustering__reportree__extra')
       nomenclature = !nomenclature_path.empty() ? "--nomenclature-file prev_nomenclature.tsv" : ""
       """
       #!/bin/bash -euo pipefail
 
-      for f in ${vcfs}; do 
-        cmp=`echo -n \$f | sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([[:digit:]]+\\.[[:alnum:]]+\\.[[:digit:]]+\\.[[:digit:]]+\\.[[:digit:]]+).+/\\1/'`        
-        ln -s \$f \$cmp
-        echo "\$cmp" >> vcf_files.txt
-      done 
+      while IFS=\$'\t' read -r key file; do
+          if (${METADATA_ID_FULL}); then
+              KEY=\$key
+          else
+              KEY=\$(sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_.+/\\1/' <<< "\$file")
+          fi
+          mv \$file \${KEY}
+          echo "\${KEY}" 
+      done < ${summary} > vcf_files.txt
      
       reportree.py \
         -m ${metadata} \
@@ -72,17 +99,16 @@ process reportree_gt {
         --mx-transpose \
         --n_proc ${task.cpus} \
         --thr ${thr}  \
-        --loci-called ${lociCalled} \
-        --unzip \
-        --site-inclusion ${siteInclusion} ${soi_par} ${zoom_par} ${zoom_subtree_par} ${extra} ${nomenclature} 
+        --unzip ${soi_par} ${zoom_par} ${zoom_subtree_par} ${extra} ${nomenclature} 
       touch gt_zooms.txt        
       """      
 }
 
 process reportree_hc {
-    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
-    cpus { [32, params.max_cpus as int].min() }   
+    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.5.4--0f5f86c689"
+    cpus 64     
     input:
+      path(summary)
       path(vcfs)
       path(metadata)
     output:
@@ -95,14 +121,16 @@ process reportree_hc {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "reportree_hc.cfg" }
     script:
       hcMethod = param('multi_clustering__reportree__HC_threshold')
-      lociCalled = param('multi_clustering__reportree__loci_called')   
-      siteInclusion = param('multi_clustering__reportree__site_inclusion')   
       """
-      for f in ${vcfs}; do 
-        cmp=`echo -n \$f | sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_[[:graph:]]+/\\1/'`
-        ln -s \$f \$cmp
-        echo "\$cmp" >> vcf_files.txt
-      done 
+      while IFS=\$'\t' read -r key file; do
+          if (${METADATA_ID_FULL}); then
+              KEY=\$key
+          else
+              KEY=\$(sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_.+/\\1/' <<< "\$file")
+          fi
+          mv \$file \${KEY}
+          echo "\${KEY}" 
+      done < ${summary} > vcf_files.txt
 
       reportree.py \
         -m ${metadata} \
@@ -111,14 +139,12 @@ process reportree_hc {
         --analysis HC \
         --columns_summary_report ${SUMMARY_COLUMNS} \
         --mx-transpose \
-        --loci-called ${lociCalled} \
-        --site-inclusion ${siteInclusion} \
         --HC-threshold ${hcMethod}
       """
 }
 
 process find_closest {
-    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
+    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/multi_clustering__reportree:/scripts:ro"
     memory { taskMemory( 1.GB, task.attempt ) }
     input:
@@ -152,7 +178,7 @@ process augur {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "augur.cfg" }
     script:
       """
-        cat ${metadata} | sed 's/${SAMPLE_COLUMN}/name/i' | sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' > augur_metadata.tsv
+        cat ${metadata} | sed 's/${ID_COLUMN}/name/i' | sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' > augur_metadata.tsv
         METADATA_LIST=\$(head -n 1 augur_metadata.tsv | tr \$'\t' ' ')
         augur refine --tree ${nwk} --output-tree tree_tt.nwk --output-node-data refine.node.json --metadata augur_metadata.tsv
         augur export v2 --tree tree_tt.nwk --node-data refine.node.json --output auspice.json \
@@ -172,14 +198,23 @@ workflow multi_clustering__reportree {
         nomenclature
     main:
         metadata = prepare_metadata(raw_metadata).metadata
-        vcfs = input.flatMap { it[1] }.collect()
-        matrix = reportree_gt(vcfs, metadata, nomenclature).matrix
+
+        if (optionalBoolean('multi_clustering__reportree__vcf_normalization')) {
+          vcf_input = bcftools(input).filtered_vcf
+        } else {
+          vcf_input = input
+        }
+
+        summary = vcf_input.collectFile { [ "summary.tsv", it[0] + '\t' + filename(it[1]) + '\n' ] }
+        files= vcf_input.collect { it[1] }
+
+        matrix = reportree_gt(summary, files, metadata, nomenclature).matrix
 
         if (optional('multi_clustering__reportree__sample_of_interest') && optional('multi_clustering__reportree__report_threshold')) {
             find_closest(matrix)
         }
         if (optional('multi_clustering__reportree__HC_threshold')) {
-          reportree_hc(vcfs, metadata)
+          reportree_hc(summary, files, metadata)
           augur(reportree_hc.out.nwk_hc, reportree_hc.out.metadata_hc, geodata)
         }
 }

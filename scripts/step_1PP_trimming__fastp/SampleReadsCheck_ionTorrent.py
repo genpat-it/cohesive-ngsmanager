@@ -17,23 +17,23 @@ def safe_open(file, mode='rt'):
 def readsInfo(fastq):
 	res = {}
 	lengthReads=[]
-	readsQual30=0
+	total_bases = 0
+	q30_bases = 0
 	avgQual=[]
 	handle = safe_open(fastq)
 	for record in SeqIO.parse(handle, "fastq"):
 		lengthReads.append(len(record.seq))
 		phredQualityList = record.letter_annotations['phred_quality']
 		avgQual.append(average(phredQualityList))
-		if average(phredQualityList)>30:
-			readsQual30+=1
+		total_bases += len(phredQualityList)
+		q30_bases += sum(q >= 30 for q in phredQualityList)
 	handle.close()
 	
-	q30Reads = round(readsQual30/float(len(lengthReads))*100,2)
+	q30Reads = round(q30_bases / float(total_bases) * 100, 2)
 	Mbases = round(float(sum(lengthReads))/1000000,2)
 
 	res.update({"lengthReads":lengthReads})
 	res.update({"avgQual":avgQual})
-	res.update({"readsQual30":readsQual30})
 	res.update({"q30Reads":q30Reads})
 	res.update({"Mbases":Mbases})
 	return res
@@ -61,9 +61,8 @@ class SampleRaw:
 		return len(lengthReads)
 	
 	def get_q30Reads(self):
-		lengthReads = self.R1.get("lengthReads")
-		readsQual30 = self.R1.get("readsQual30")
-		return round(readsQual30/float(len(lengthReads))*100,2)
+		readsQual30 = self.R1.get("q30Reads")
+		return readsQual30
 		
 	def get_Qavg(self):
 		avgQual = self.R1.get("avgQual")
@@ -137,9 +136,8 @@ class SampleTrimmed:
 		return len(lengthReads)
 	
 	def get_q30Reads(self):
-		lengthReads = self.R1.get("lengthReads")
-		readsQual30 = self.R1.get("readsQual30")
-		return round(readsQual30/float(len(lengthReads))*100,2)
+		readsQual30 = self.R1.get("q30Reads")
+		return readsQual30
 		
 	def get_Qavg(self):
 		avgQual = self.R1.get("avgQual")
@@ -196,7 +194,6 @@ class Sample:
 			self.Trimmed = SampleTrimmed(T1)
 		else:
 			self.Trimmed = None
-		#self.Pear = SamplePear(Fpear,Rpear,Merged)
 		self.warnings = []
 		self.fails = []
 	
@@ -273,13 +270,7 @@ if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='FASTQ Report')
 	parser.add_argument('-n', '--name',help='Sample name',type=str, required=True)
 	parser.add_argument('-R1', '--Read1',help='Fastq R1',type=str, required=True)
-	#parser.add_argument('-R2', '--Read2',help='Fastq R2',type=str)
 	parser.add_argument('-T1', '--Treads1',help='Fastq R1',type=str)
-	# parser.add_argument('-T2', '--Treads2',help='Fastq R2',type=str, required=True)
-	# parser.add_argument('-U', '--Unpaired',help='Fastq Unpaired',type=str, required=True)
-	# parser.add_argument('-F', '--Frw',help='Fastq Forward Pear',type=str, required=True)
-	# parser.add_argument('-R', '--Rev',help='Fastq Reverse Pear',type=str, required=True)
-	# parser.add_argument('-M', '--Mrg',help='Fastq Merged Pear',type=str, required=True)
 	args = parser.parse_args()
 
 	if args.Treads1 != None:
@@ -302,7 +293,3 @@ if __name__ == '__main__':
 
 		# CREATE REPORT
 		sample.makeReport()
-	
-	
-	
-	

@@ -10,7 +10,7 @@ def METHOD = 'filtering'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process abricate_filtering {
-    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
+    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
     memory { taskMemory( 250.MB, task.attempt ) }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     input:

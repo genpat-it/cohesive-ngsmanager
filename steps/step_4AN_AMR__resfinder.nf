@@ -11,7 +11,7 @@ def METHOD = 'resfinder'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process resfinder {
-    container "ghcr.io/genpat-it/resfinder:4.1.5--858219071c"
+    container "${LOCAL_REGISTRY}/bioinfo/resfinder:4.1.5--858219071c"
     containerOptions = "-u 0:0"
     memory { taskMemory( 4.GB, task.attempt ) }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"

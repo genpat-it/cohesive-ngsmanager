@@ -5,6 +5,7 @@ include { step_4TY_lineage__pangolin } from '../steps/step_4TY_lineage__pangolin
 include { extractKey } from '../functions/common.nf'
 include { getSingleInput } from '../functions/parameters.nf'
 
+// def referencePath = '/databases/REFERENCES/virus/NC_045512.gb'
 def referenceCode = 'NC_045512.2'
 def referencePath = "${params.assets_dir}/module_covid_emergency/NC_045512.fasta"
 def referenceRiscd = '220308-020220308005121273-2AS_import-external'

@@ -1,17 +1,20 @@
 nextflow.enable.dsl=2
 
 include { taskMemory;getEmpty } from '../functions/common.nf'
-include { _getAlleles;param;optional;optionalOrDefault } from '../functions/parameters.nf'
+include { getAllelicProfile;param;optional;optionalOrDefault } from '../functions/parameters.nf'
 
-def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_aliases')  
+def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_aliases').tokenize(',\s').join('|')  
 def SUMMARY_COLUMNS = param('multi_clustering__reportree__summary_columns')  
-def SAMPLE_COLUMN = param('multi_clustering__reportree__summary_sample_column')  
+def ID_COLUMN = param('metadata_id_column')  
 def GEO_RESOLUTION_COLUMNS = param('multi_clustering__reportree__summary_geo_column')  
 
+def METADATA_ID_FULL = param('metadata_with_full_id') as boolean
+
 process merge_profiles {
-    container "ghcr.io/genpat-it/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
+    container "${LOCAL_REGISTRY}/bioinfo/chewbbaca-w-schemas:2.8.5--7742d1fae0"
     memory { taskMemory( 1.GB, task.attempt ) }
     input:
+      path(summary)
       path(profiles)
     output:
       path '**'
@@ -22,7 +25,21 @@ process merge_profiles {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "merge_profiles.cfg" }
     script:
       """
-        for file in ${profiles} ; do awk 'FNR==1{print ""}1' \${file} | sed 's/,/\t/g' | sed -E "s/^[^SF][^ai]\\S+/\${file}/" | sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_[[:graph:]]+/\\1/'; done | sort -ru  > tmp.tsv
+        #!/bin/bash -euo pipefail
+        header_printed="no"
+        while IFS=\$'\t' read -r key file; do
+            SEPARATOR="\$( [[ "\$file" == *.csv ]] && echo "," || echo "\\t" )"
+            if (${METADATA_ID_FULL}); then
+                KEY=\$key
+            else
+                KEY=\$(sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_.+/\\1/' <<< "\$file")
+            fi
+            awk -v id="\$KEY" -v header_printed="\$header_printed" -v FS="\$SEPARATOR" -v OFS="\\t" '
+              NR==1 && header_printed=="no" {\$1=\$1; print} 
+              NR==2 {\$1=id; print}
+            ' \$file
+            header_printed="yes"
+        done < ${summary} > tmp.tsv
         chewie ExtractCgMLST --input-file tmp.tsv --output-directory . --threshold 0
       """
 }
@@ -39,14 +56,21 @@ process prepare_metadata {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.log', saveAs: { "prepare_metadata.log" }
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "prepare_metadata.cfg" }
     script:
-      """
-         sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' ${metadata} > reportree_metadata.tsv
-      """
+      soi = optional('multi_clustering__reportree__sample_of_interest').replaceAll(/[\s\n\t\r"'$\{]/, "")	
+      if (soi) {
+        """
+          awk -v SOI="${soi}," 'BEGIN{ FS=OFS="\\t" } {\$1 = \$1 FS (NR==1? "group" : (index(SOI, \$1",")? "sample of interest" : "other")) }1' ${metadata} | sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' > reportree_metadata.tsv	
+        """
+      } else {
+        """
+          sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' ${metadata} > reportree_metadata.tsv
+        """
+      }
 }
 
 process reportree_gt {
-    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
-    cpus { [32, params.max_cpus as int].min() }   
+    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.5.4--0f5f86c689"
+    cpus 64     
     input:
       path(profiles)
       path(metadata)
@@ -91,8 +115,8 @@ process reportree_gt {
 }
 
 process reportree_hc {
-    container "ghcr.io/genpat-it/reportree:2.4.1--088b6651b8"
-    cpus { [32, params.max_cpus as int].min() }   
+    container "${LOCAL_REGISTRY}/bioinfo/reportree:2.5.4--0f5f86c689"
+    cpus 64     
     input:
       path(profiles)
       path(metadata)
@@ -123,7 +147,7 @@ process reportree_hc {
 }
 
 process find_closest {
-    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
+    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/multi_clustering__reportree:/scripts:ro"
     memory { taskMemory( 1.GB, task.attempt ) }
     input:
@@ -157,7 +181,7 @@ process augur {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "augur.cfg" }
     script:
       """
-        cat ${metadata} | sed 's/${SAMPLE_COLUMN}/name/i' | sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' > augur_metadata.tsv
+        cat ${metadata} | sed 's/${ID_COLUMN}/name/i' | sed -E 's/${SUMMARY_DATE_ALIASES}/date/i' > augur_metadata.tsv
         METADATA_LIST=\$(head -n 1 augur_metadata.tsv | tr \$'\t' ' ')
         augur refine --tree ${nwk} --output-tree tree_tt.nwk --output-node-data refine.node.json --metadata augur_metadata.tsv
         augur export v2 --tree tree_tt.nwk --node-data refine.node.json --output auspice.json \
@@ -177,7 +201,11 @@ workflow multi_clustering__reportree {
         nomenclature
     main:
         metadata = prepare_metadata(raw_metadata).metadata
-        profiles = merge_profiles(input.collect()).all_profiles
+
+        summary = input.collectFile { [ "summary.tsv", it[0] + '\t' + it[1].getName() + '\n' ] }
+        files= input.collect { it[1] }
+
+        profiles = merge_profiles(summary, files).all_profiles        
         matrix = reportree_gt(profiles, metadata, nomenclature).matrix    
 
         if (optional('multi_clustering__reportree__sample_of_interest') && optional('multi_clustering__reportree__report_threshold')) {
@@ -190,16 +218,16 @@ workflow multi_clustering__reportree {
 }
 
 workflow {
-    multi_clustering__reportree(getAlleles(),  param('metadata'), param('geodata'), optionalOrDefault('multi_clustering__reportree__nomenclature', getEmpty()));
+    multi_clustering__reportree(getInput(),  param('metadata'), param('geodata'), optionalOrDefault('multi_clustering__reportree__nomenclature', getEmpty()));
 }
 
-def getAlleles() {
+def getInput() {
     if (!params.containsKey('input')) {
       exit 2, "missing required param: input";
     }
-    def schema = params.containsKey('schema') ? params.schema : null
+    def schema = params.allelic_profile_encoding 
     assert params.input instanceof ArrayList
     params.input.inject(Channel.empty()) {
-        res, val -> res.mix(_getAlleles(val.cmp, val.riscd, schema))
+        res, val -> res.mix(getAllelicProfile(val.cmp, val.riscd, schema))
     }        
 }

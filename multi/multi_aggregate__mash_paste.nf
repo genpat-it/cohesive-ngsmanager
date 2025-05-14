@@ -12,6 +12,7 @@ process mash_paste {
 		path(sketches)
 	output:
 		path '*'
+		path 'dataset_sketch.msh', emit: refsketch
 		path '{*.sh,*.log}', hidden: true
 		publishDir mode: 'rellink', "${params.outdir}/result", pattern: '{dataset_sketch.msh}'
 		publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "mash_paste.cfg" }
@@ -23,14 +24,19 @@ process mash_paste {
 		"""
 }
 
-workflow multi_aggregate__mash_paste {
+workflow multi_aggregate__mash {
 	take:
 		input
 	main:
 		sketches = input.collect { it[1] }
 		mash_paste(sketches)
+		//refsketch = mash_paste(sketches).refsketch
+		//pairs = refsketch.combine(input)
+		//test(pairs)
+		//mash_dist(pairs)
+		//pairs.view()
 }
 
 workflow {
-	multi_aggregate__mash_paste(getInputOf('*.msh'))
+	multi_aggregate__mash(getInputOf('*.msh'))
 }

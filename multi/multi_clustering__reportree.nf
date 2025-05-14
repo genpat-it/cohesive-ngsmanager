@@ -5,10 +5,7 @@ include { taskMemory;getEmpty } from '../functions/common.nf'
 
 if (getReportreeInputType() == 'alleles') {
   include { multi_clustering__reportree } from "../multi/multi_clustering__reportree_alleles"
-  include { getAlleles as inputFn } from "../multi/multi_clustering__reportree_alleles"
-} else if (getReportreeInputType() == 'alignment') {
-  include { multi_clustering__reportree } from "../multi/multi_clustering__reportree_alignment"
-  include { getInput as inputFn } from '../functions/parameters.nf'
+  include { getInput as inputFn } from "../multi/multi_clustering__reportree_alleles"
 } else {
   include { multi_clustering__reportree } from "../multi/multi_clustering__reportree_vcf"
   include { getVCFs as inputFn } from '../functions/parameters.nf'
@@ -16,7 +13,7 @@ if (getReportreeInputType() == 'alleles') {
 
 def getReportreeInputType() {
     def res = param('multi_clustering__reportree__input')
-    if (!(res in ['alleles', 'vcf', 'alignment'])) {
+    if (!(res in ['alleles', 'vcf'])) {
         exit 2, "params (multi_clustering__reportree__input) not valid"    
     } 
     return res

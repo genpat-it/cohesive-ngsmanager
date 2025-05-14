@@ -12,8 +12,10 @@ def decode(c):
     return ord(c) - 33	
 
 def length_and_quality(title, sequence, quality):
-    qual = functools.reduce(lambda a, b: a+b, map(decode, quality)) / len(quality)
-    return [ len(sequence), qual ]
+    decoded_quality = list(map(decode, quality))
+    qual = average(decoded_quality)
+    q30_bases = sum(q >= 30 for q in decoded_quality)
+    return [len(sequence), qual, q30_bases]
 
 def safe_open(file, mode='rt'):
     # safe open file
@@ -27,7 +29,8 @@ def safe_open(file, mode='rt'):
 def readsInfo(fastq):
     res = {}
     lengthReads = []
-    readsQual30 = 0
+    total_bases = 0
+    q30_bases = 0
     avgQual = []
     try:
         pool_size = min(os.cpu_count(), 8)
@@ -35,11 +38,12 @@ def readsInfo(fastq):
         with safe_open(fastq) as handle, Pool(pool_size) as pool:
             result = pool.starmap(length_and_quality, SeqIO.QualityIO.FastqGeneralIterator(handle))
         
-        for (seqlen, qual) in result:
+        for (seqlen, qual, q30) in result:
             lengthReads.append(seqlen)
             avgQual.append(qual)
-            if qual > 30:
-                readsQual30 += 1
+            total_bases += seqlen
+            q30_bases += q30
+            
         
         # lengthReads = list(map(lambda a: a[0], result)) 
         # avgQual = list(map(lambda a: a[1], result)) 
@@ -51,7 +55,7 @@ def readsInfo(fastq):
         exit(1)
 
     if len(lengthReads) != 0:
-        q30Reads = round(readsQual30/float(len(lengthReads))*100,2)
+        q30Perc = round(q30_bases / float(total_bases) * 100, 2)
         Mbases = round(float(sum(lengthReads))/1000000,2)
         res.update({"countReads":len(lengthReads)})
         res.update({"minLengthReads":min(lengthReads)})
@@ -60,8 +64,7 @@ def readsInfo(fastq):
         res.update({"minQual":min(avgQual)})
         res.update({"maxQual":max(avgQual)})
         res.update({"avgQual":average(avgQual)})
-        res.update({"readsQ30":readsQual30})
-        res.update({"percQ30Reads":q30Reads})
+        res.update({"readsQ30": q30Perc})
         res.update({"Mbases":Mbases})
     else:
         res.update({"countReads":0})
@@ -72,7 +75,6 @@ def readsInfo(fastq):
         res.update({"maxQual":0})
         res.update({"avgQual":0})
         res.update({"readsQ30":0})
-        res.update({"percQ30Reads":0})
         res.update({"Mbases":0})
 
     return res
@@ -115,7 +117,7 @@ class SampleRaw:
         totQ30 = self.R1.get("readsQ30") + self.R2.get("readsQ30")
         if float(totReads) == 0:
             return 0
-        return round(totQ30 / float(totReads) * 100, 2)
+        return round(float(totQ30)/2,2)
 
     def get_stats(self):
         minLength = min(self.R1.get("minLengthReads"), self.R2.get("minLengthReads"))
@@ -218,7 +220,7 @@ class SampleTrimmed:
         totQ30 = self.R1.get("readsQ30") + self.R2.get("readsQ30")
         if float(totReads) == 0:
             return 0
-        return round(totQ30 / float(totReads) * 100, 2)
+        return round(float(totQ30)/2,2)
 
     def get_stats(self):
         minLength = min(self.R1.get("minLengthReads"), self.R2.get("minLengthReads"))
@@ -373,7 +375,4 @@ if __name__ == '__main__':
     # CREATE REPORT
     print("Create final report")
     sample.makeReport()
-
     print("DONE")
-
-

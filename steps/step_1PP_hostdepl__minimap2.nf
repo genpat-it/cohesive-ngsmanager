@@ -13,7 +13,7 @@ process minimap2 {
     container "quay.io/biocontainers/minimap2:2.26--he4a0461_1"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     // memory { taskMemory( 10.GB, task.attempt ) }
-    cpus { [16, params.max_cpus as int].min() }
+    cpus 16
     when:
       isCompatibleWithSeqType(reads, ['nanopore'], task.process)
     input:
@@ -40,7 +40,7 @@ process samtools {
     container 'quay.io/biocontainers/samtools:1.10--h9402c20_1'
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     // memory { taskMemory( 18.GB, task.attempt ) }
-    cpus { [16, params.max_cpus as int].min() }
+    cpus 16
     input:
       tuple path(sam), val(host_code)
     output:

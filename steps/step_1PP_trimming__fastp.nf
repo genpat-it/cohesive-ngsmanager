@@ -1,7 +1,7 @@
 nextflow.enable.dsl=2
 
 include { parseMetadataFromFileName;executionMetadata;taskMemory;taskTime } from '../functions/common.nf'
-include { getInput;isIonTorrent;isIlluminaPaired;isCompatibleWithSeqType } from '../functions/parameters.nf'
+include { getInput;isIonTorrent;isIlluminaPaired;isCompatibleWithSeqType;optWrap } from '../functions/parameters.nf'
 include { stepInputs;getRisCd;extractKey } from '../functions/common.nf'
 
 def ex = executionMetadata()
@@ -11,7 +11,7 @@ def METHOD = 'fastp'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process fastp {
-    container "ghcr.io/genpat-it/fastp:0.23.1--e4ac3df4c5"
+    container "${LOCAL_REGISTRY}/bioinfo/fastp:0.23.4--b2c053c2f8"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 3.GB, task.attempt ) }
     time { taskTime( 10.m, task.attempt ) }
@@ -32,15 +32,19 @@ process fastp {
       (r1,r2) = (reads instanceof java.util.Collection) ? reads : [reads, null]
       md = parseMetadataFromFileName(r1.getName())
       base = "${md.ds}-${ex.dt}_${md.cmp}_${METHOD}"
-      riscd = getRisCd(md, ex, STEP, METHOD)      
+      riscd = getRisCd(md, ex, STEP, METHOD)
+      adapter_par1 = optWrap('step_1PP_trimming__fastp__adapter1', '--adapter_sequence {}')
+      adapter_par2 = optWrap('step_1PP_trimming__fastp__adapter2', '--adapter_sequence_r2 {}') 
       if (isIlluminaPaired(reads)) { 
         """
           fastp --in1 ${r1} --out1 ${base}_R1.fastq.gz --in2 ${r2} --out2 ${base}_R2.fastq.gz \
           --unpaired1 ${base}_unpaired.fastq.gz --unpaired2 ${base}_unpaired.fastq.gz \
+          ${adapter_par1} ${adapter_par2} \
           --json ${base}_summary.json --html ${base}_summary.html --thread 8        """
       } else if (isIonTorrent(reads)) {
         """
           fastp --in1 ${r1} --out1 ${base}_R1.fastq.gz  \
+          ${adapter_par1} \
           --json ${base}_summary.json --html ${base}_summary.html --thread 8        
         """        
       }
@@ -83,7 +87,7 @@ process sample_reads_check {
 process fastqc {
     container 'biocontainers/fastqc:v0.11.5_cv4'
     memory { taskMemory( 400.MB, task.attempt ) }
-    time { taskTime( 5.m, task.attempt ) }    
+    time { taskTime( 15.m, task.attempt ) }    
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     input:
       tuple val(riscd_input), path(reads)

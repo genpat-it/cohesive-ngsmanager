@@ -11,11 +11,11 @@ def METHOD = 'shovill'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process shovill {
-    container "ghcr.io/genpat-it/shovill:1.1.0--d84470570e"    
+    container "${LOCAL_REGISTRY}/bioinfo/shovill:1.1.0--d84470570e"    
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 16.GB, task.attempt ) }
     time { taskTime( 45.m, task.attempt ) }    
-    cpus { [8, params.max_cpus as int].min() }   
+    cpus 8   
     when:
       isCompatibleWithSeqType(reads, ['illumina_paired'], null)
     input:
@@ -41,11 +41,11 @@ process shovill {
 }
 
 process shovill_se {
-    container "ghcr.io/genpat-it/shovill-se:1.1.1--ba51ea69e5"    
+    container "${LOCAL_REGISTRY}/bioinfo/shovill-se:1.1.1--ba51ea69e5"    
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 16.GB, task.attempt ) }
     time { taskTime( 45.m, task.attempt ) }    
-    cpus { [8, params.max_cpus as int].min() }   
+    cpus 8   
     when:
       isCompatibleWithSeqType(reads, ['ion'], null)
     input:
@@ -97,7 +97,7 @@ process checkm {
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 48.GB, task.attempt ) }
     time { taskTime( 15.m, task.attempt ) }    
-    cpus { [16, params.max_cpus as int].min() }
+    cpus 16
     input:
       tuple val(_), path(assembly)
     output:

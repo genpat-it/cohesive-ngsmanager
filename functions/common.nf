@@ -166,6 +166,10 @@ def extractDsRef(input) {
     }
 }
 
+def _isRunningFromSampleSheet() {
+    return params.containsKey('samplesheet') && (params.samplesheet instanceof CharSequence);
+}
+
 def getBaseName(fileName) {
     try {      
         return (fileName - ~/\.\w+$/)
@@ -244,6 +248,15 @@ def taskMemory(obj, attempt) {
                 mem = params.max_memory as nextflow.util.MemoryUnit
         }
         return (mem.compareTo(params.max_memory as nextflow.util.MemoryUnit) == 1) ? params.max_memory : mem
+    } catch (t) {
+        println "taskMemory: unexpected exception: ${t.asString()}"
+        return obj
+    }
+}
+def taskCpus(obj, attempt) {
+    try {
+        def max_cpus = params.max_cpus as int
+        return obj > max_cpus ? max_cpus : obj
     } catch (t) {
         println "taskMemory: unexpected exception: ${t.asString()}"
         return obj

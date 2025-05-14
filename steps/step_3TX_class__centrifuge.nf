@@ -1,11 +1,10 @@
 nextflow.enable.dsl=2
 
 include { getEmpty;flattenPath; parseMetadataFromFileName; executionMetadata;taskMemory } from '../functions/common.nf'
-include { param;isFullOutput;getSingleInput;isIlluminaPaired;isCompatibleWithSeqType;isIonTorrent } from '../functions/parameters'
+include { isFullOutput;getSingleInput;isIlluminaPaired;isCompatibleWithSeqType;isIonTorrent } from '../functions/parameters'
 include { stepInputs;getRisCd } from '../functions/common.nf'
 
-def DB_PATH=param('step_3TX_class__centrifuge__db_path')
-def DB_NAME=param('step_3TX_class__centrifuge__db_name')
+def db_centrifuge="/biowork/databases/PROGRAMS/Centrifuge/DBindex"
 
 def ex = executionMetadata()
 
@@ -15,9 +14,9 @@ def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process centrifuge {
     container "quay.io/biocontainers/centrifuge:1.0.4_beta--h9a82719_6"
-    containerOptions = "-v ${DB_PATH}:${DB_PATH}:ro"
+    containerOptions = "-v /biowork:/biowork:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
-    cpus { [16, params.max_cpus as int].min() }
+    cpus 16
     memory { taskMemory( 16.GB, task.attempt ) }
     when:
       isCompatibleWithSeqType(reads, ['nanopore'], task.process)
@@ -36,10 +35,10 @@ process centrifuge {
       md = parseMetadataFromFileName(reads.getName())
       base = "${md.ds}-${ex.dt}_${md.cmp}_${METHOD}" 
       """
-        centrifuge -p ${task.cpus} -x ${DB_PATH}/${DB_NAME} -U ${reads} -S ${base}.output --report-file ${base}.report
+        centrifuge -p ${task.cpus} -x ${db_centrifuge} -U ${reads} -S ${base}.output --report-file ${base}.report
         head -n 1 ${base}.report > ${base}_genus.report; grep -w "genus" ${base}.report | sort -t "\t" -nr -k5 >> ${base}_genus.report
         head -n 1 ${base}.report > ${base}_species.report; grep -w "species" ${base}.report | sort -t "\t" -nr -k5 >> ${base}_species.report         
-        centrifuge-kreport -X ${DB_PATH}/${DB_NAME} ${base}.report > ${base}_KrakenLike.report
+        centrifuge-kreport -X ${db_centrifuge} ${base}.report > ${base}_KrakenLike.report
       """    
 }
 

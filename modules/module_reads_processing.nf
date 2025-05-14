@@ -6,7 +6,7 @@ include { step_1PP_trimming__fastp } from '../steps/step_1PP_trimming__fastp'
 include { step_3TX_class__kraken } from '../steps/step_3TX_class__kraken'
 include { extractKey } from '../functions/common.nf'
 include { getInput;hasFastqData;hasEnoughFastqData;isIlluminaPaired;isIonTorrent;isNanopore; } from '../functions/parameters.nf'
-include { isBacterium } from '../functions/sampletypes.nf'
+include { isBacterium } from '../functions/samplesheet.nf'
 
 workflow module_reads_processing {
     take: 

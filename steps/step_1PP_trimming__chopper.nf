@@ -15,7 +15,7 @@ process chopper {
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 5.GB, task.attempt ) }
     time { taskTime( 10.m, task.attempt ) }
-    cpus { [16, params.max_cpus as int].min() }       
+    cpus 16       
     when:
       isCompatibleWithSeqType(reads, ['nanopore'], task.process)    
     input:
@@ -47,9 +47,9 @@ process chopper {
 }
 
 process nanoplot {
-    container 'quay.io/biocontainers/nanoplot:1.41.3--pyhdfd78af_0'
+    container 'quay.io/biocontainers/nanoplot:1.44.1--pyhdfd78af_0'
     memory { taskMemory( 4.GB, task.attempt ) }
-    cpus { [8, params.max_cpus as int].min() }
+    cpus 8
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     input:
       tuple val(riscd_input), path(reads)
