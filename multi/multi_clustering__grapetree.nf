@@ -1,20 +1,16 @@
 nextflow.enable.dsl=2
 
 include { parseRISCD;taskMemory } from '../functions/common.nf'
-include { getAllelicProfile;param } from '../functions/parameters.nf'
+include { _getAlleles;param } from '../functions/parameters.nf'
 
-def GEO_RESOLUTION_COLUMNS='Comune'
-def DATE_COLUMN_1='Sampling Date'
-def DATE_COLUMN_2='DataPrelievo'
-def ID_COLUMN = param('metadata_id_column')
-
-def METADATA_ID_FULL = param('metadata_with_full_id') as boolean
+def GEO_RESOLUTION_COLUMNS = param('multi_clustering__reportree__summary_geo_column')
+def SUMMARY_DATE_ALIASES = param('multi_clustering__reportree__summary_date_aliases')
+def SAMPLE_COLUMN = param('multi_clustering__reportree__summary_sample_column')
 
 process extract_cgMLST {
-    container "${LOCAL_REGISTRY}/bioinfo/chewbbaca-w-schemas:2.8.5--7742d1fae0"
+    container "ghcr.io/genpat-it/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
     memory { taskMemory( 5.GB, task.attempt ) }
     input:
-      path(summary)
       path(alleles)
     output:
       path '**'
@@ -26,22 +22,8 @@ process extract_cgMLST {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "extract_cgMLST.cfg" }
     script:
       """
-        #!/bin/bash -euo pipefail
-        header_printed="no"
-        while IFS=\$'\t' read -r key file; do
-            SEPARATOR="\$( [[ "\$file" == *.csv ]] && echo "," || echo "\\t" )"
-            if (${METADATA_ID_FULL}); then
-                KEY=\$key
-            else
-                KEY=\$(sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_.+/\\1/' <<< "\$file")
-            fi
-            awk -v id="\$KEY" -v header_printed="\$header_printed" -v FS="\$SEPARATOR" -v OFS="\\t" '
-              NR==1 && header_printed=="no" {\$1=\$1; print} 
-              NR==2 {\$1=id; print}
-            ' \$file
-            header_printed="yes"
-        done < ${summary} > results_alleles_all.tsv       
-        chewie ExtractCgMLST -i results_alleles_all.tsv -o . > extract_cgMLST.log 
+        for file in ${alleles} ; do awk 'FNR==1{print ""}1' \${file} | sed 's/,/\t/g' | sed -E "s/^[^SF][^ai]\\S+/\${file}/" | sed -E 's/DS[[:digit:]]+-DT[[:digit:]]+_([^_]+)_[[:graph:]]+/\\1/'; done | sort -ru  > results_alleles_all.tsv
+        chewie ExtractCgMLST -i results_alleles_all.tsv -o . > extract_cgMLST.log
       """
 }
 
@@ -95,9 +77,8 @@ process augur {
     publishDir mode: 'rellink', "${params.outdir}/meta", pattern: '.command.sh', saveAs: { "augur.cfg" }
     script:
       """
-        cat ${metadata} | sed 's/${ID_COLUMN}/name/i' \
-           | sed 's/${DATE_COLUMN_1}/date/i' \
-           | sed 's/${DATE_COLUMN_2}/date/i' > augur_metadata.tsv
+        cat ${metadata} | sed 's/${SAMPLE_COLUMN}/name/i' \
+           | sed 's/${SUMMARY_DATE_ALIASES}/date/i' > augur_metadata.tsv
         METADATA_LIST=\$(head -n 1 augur_metadata.tsv | tr \$'\t' ' ')
         augur refine --tree ${nwk} --output-tree tree_tt.nwk --output-node-data refine.node.json --metadata augur_metadata.tsv
         augur export v2 --tree tree_tt.nwk --node-data refine.node.json --output auspice.json \
@@ -114,12 +95,10 @@ workflow multi_clustering__grapetree {
         metadata
         geodata
     main:
-      summary = input.collectFile { [ "summary.tsv", it[0] + '\t' + it[1].getName() + '\n' ] }
-      files= input.collect { it[1] }
-      cgMLST = extract_cgMLST(summary, files).cgMLST
-      dists(cgMLST)
-      nwk_nj = grapetree(cgMLST).nwk_nj
-      augur(nwk_nj, metadata, geodata)
+        cgMLST = extract_cgMLST(input.collect()).cgMLST
+        dists(cgMLST)
+        nwk_nj = grapetree(cgMLST).nwk_nj
+        augur(nwk_nj, metadata, geodata)
 }
 
 workflow {
@@ -130,10 +109,10 @@ def getInput() {
     if (!params.containsKey('input')) {
       exit 2, "missing required param: input";
     }
-    def schema = params.allelic_profile_encoding 
+    def schema = params.containsKey('schema') ? params.schema : null
     assert params.input instanceof ArrayList
     params.input.inject(Channel.empty()) {
-        res, val -> res.mix(getAllelicProfile(val.cmp, val.riscd, schema))
+        res, val -> res.mix(_getAlleles(val.cmp, val.riscd, schema))
     }        
 }
 

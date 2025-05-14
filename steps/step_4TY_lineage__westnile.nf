@@ -14,7 +14,7 @@ STEP_ASSETS_DIR = "${params.assets_dir}/${ENTRYPOINT}"
 
 def HCOV_THRESHOLD = params.step_4TY_lineage__westnile___threshold
 
-def WESTNILE_LINEAGE_REFERENCES_PATH = "${STEP_ASSETS_DIR}/${METHOD}_lineage_references.json"
+def WESTNILE_LINEAGE_REFERENCES_PATH = "${STEP_ASSETS_DIR}/westnile_lineage_references.json"
 
 WESTNILE_LINEAGE_REFERENCES = new groovy.json.JsonSlurper().parseText(file(WESTNILE_LINEAGE_REFERENCES_PATH).text)
 
@@ -50,20 +50,19 @@ def isValidLineage(lineageResult) {
  
 def getWNVReferences() {
    try {        
-      return Channel.fromList(WESTNILE_LINEAGE_REFERENCES.collect { [ it.ref_riscd, it.ref_code, "${STEP_ASSETS_DIR}/${it.ref_path}" ] } )
+      references = Channel.fromList(WESTNILE_LINEAGE_REFERENCES.collect { [ it.ref_riscd, it.ref_code, "${STEP_ASSETS_DIR}/${it.ref_path}" ] } )
    } catch(Throwable t) {
       exit 1, "unexpected exception: ${t.asString()}"
    }   
 }
 
 process snippy {
-    container "${LOCAL_REGISTRY}/bioinfo/snippy:4.5.1--7be4a1c45a"
+    container "ghcr.io/genpat-it/snippy:4.5.1--7be4a1c45a"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 8.GB, task.attempt ) }
     maxForks 4
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '{*.log,*.json}'
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base_ref}.cfg" }
-    afterScript "echo '${stepInputs(riscd_input, md, ex, STEP, METHOD, null)}' > ${base}_input.json"
+    when:
+      reference_path && reference_path.exists() && !reference_path.empty()
     input:
       tuple val(riscd_input), path(reads), val(riscd_ref), val(reference), path(reference_path)
     output:
@@ -71,8 +70,9 @@ process snippy {
       path '*'
       tuple val(riscd), val(reference), path("snippy/${base_ref}.bam"),  emit: bam  
       path '*.sh', hidden: true
-    when:
-      reference_path && reference_path.exists() && !reference_path.empty()
+    afterScript "echo '${stepInputs(riscd_input, md, ex, STEP, METHOD, null)}' > ${base}_input.json"
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '{*.log,*.json}'
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base_ref}.cfg" }
     script:
       (r1,r2) = (reads instanceof java.util.Collection) ? reads : [reads, null]
       md = parseMetadataFromFileName(r1.getName())
@@ -99,13 +99,13 @@ process samtools_depth {
     container 'quay.io/biocontainers/samtools:1.10--h9402c20_1'
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 500.MB, task.attempt ) }
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base_ref}.cfg" }
     input:
       tuple val(riscd_input), val(reference), path(bam)
     output:
       path '*'
       tuple val(riscd), path("${base_ref}.coverage"), emit: coverage
       path '*.sh', hidden: true
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base_ref}.cfg" }
     script:
       md = parseMetadataFromFileName(bam.getName())
       base = "${md.ds}-${ex.dt}_${md.cmp}"
@@ -121,20 +121,20 @@ process samtools_depth {
 }
 
 process lineage_selection {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
-    containerOptions "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
+    containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 250.MB, task.attempt ) }
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '*.log'
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: 'errors.log', saveAs: { "${base}.err" }
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base}.cfg" }
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/result", pattern: '*.csv'
     input:
       tuple val(riscd_input), path(covfile)
     output:
       path '*'
       tuple val(riscd), path("${base}.csv"), emit: lineage, optional: true
       path '*.sh', hidden: true
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '*.log'
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: 'errors.log', saveAs: { "${base}.err" }
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base}.cfg" }
+    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex.dt}_${METHOD}/result", pattern: '*.csv'
     script:
       coverage_file = (covfile instanceof java.util.Collection) ? covfile.flatten()[0] : covfile
       md = parseMetadataFromFileName(coverage_file.getName())

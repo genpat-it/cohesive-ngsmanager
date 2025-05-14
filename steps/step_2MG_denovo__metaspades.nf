@@ -14,7 +14,7 @@ process metaspades {
     container 'quay.io/biocontainers/spades:3.11.1--py27_zlib1.2.8_0'
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 24.GB, task.attempt ) }
-    cpus 16       
+    cpus { [16, params.max_cpus as int].min() }       
     when:
       isCompatibleWithSeqType(reads, 'illumina_paired', task.process)    
     input:
@@ -39,7 +39,7 @@ process metaspades {
 }
 
 process assembly_filter {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     memory { taskMemory( 3.GB, task.attempt ) }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"

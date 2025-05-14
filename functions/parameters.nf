@@ -1,159 +1,4 @@
 include { getEmpty;parseRISCD;flattenPath;executionMetadata;getGB;getRisCd } from './common.nf'
-include { getDsMetadata;isRunningFromSampleSheet } from './samplesheet.nf'
-
-def getRawReadsFromSampleSheet() {
-    return getLRMRawReadsFromSampleSheet()
-}
-
-def getLRMRawReadsFromSampleSheet(){
-    try {
-        if (!isRunningFromSampleSheet()) {
-            exit 2, "required params (samplesheet) not found";
-        }
-        def defaultRunPath = params.samplesheet - ~/\/[^\/]+$/        
-        def defaultSubpath = '/A*/**/?astq/'
-        def run_path = params.containsKey('run_path') && params.run_path instanceof CharSequence ? params.run_path : "${defaultRunPath}/${defaultSubpath}"
-
-        def myids = []
-
-        def filename = "${params.samplesheet}"
-
-        def row = 1
-
-        // subset of samplesheet: specifying nodes
-        def nodes =  params.containsKey('nodes') ? params.nodes : 1
-        def node =  params.containsKey('node') ? params.node : 0
-        
-        // subset of samplesheet: specifying indexes)
-        def batch_start = params.containsKey('batch_start') ? params.batch_start : -1
-        def batch_size = params.containsKey('batch_size') ? params.batch_size : 1
-        def batchEnd = batch_start + batch_size
-
-        def batch_exclude = params.containsKey('batch_exclude') ? params.batch_exclude.split(",").collect { it as int } : -1
-
-        def sampleSheetFile = new File(filename)
-        def firstSampleIndex = sampleSheetFile.readLines().findIndexOf { it.matches("^\\d.*")} + 1
-
-        sampleSheetFile.splitEachLine(",") {fields ->
-            if (row < firstSampleIndex) {
-                row++
-                return;
-            }      
-            def index = row
-            def consideringSamples = false
-            if (batch_start > -1) {
-                if (index  >= batch_start && index < batchEnd && ! (index in batch_exclude)) {
-                    consideringSamples = true
-                }
-            } else {
-                consideringSamples = ((index % nodes) == node)
-            }
-            if (consideringSamples) {
-                if (!fields[1]) {
-                    log.warn "DS not valorized in samplesheet, row: ${row}"
-                } else {
-                    // log.info "considering samplesheet row ${row}, CMP: ${fields[0]}, DS: ${fields[1]}"
-                    myids.add("${run_path}/${fields[1]}[_-]*.f*q.gz")
-                }
-            }
-            row++
-        }
-
-        if (!myids.isEmpty()) {
-            Channel
-                .fromPath(myids, checkIfExists: params.check_file_existence)
-                .map { 
-                    def matcher = (it.getName() =~ /^(DS\d+)[_-].*$/)
-                    if (!matcher.matches()) {
-                        exit 1, "Unexpected raw reads filename found: ${name}"
-                    }
-                    return [ matcher.group(1), it ] 
-                }
-                .groupTuple(sort: true)
-                .map {  [ it[0] , it[1].findAll { it.getName() =~ /.*_R1(_.*)?\.f.*q.gz$/ }, it[1].findAll { it.getName() =~ /.*_R2(_.*)?\.f.*q.gz$/ }, filename ] }
-        } else {
-            log.warn "Could not find any sample to process (rows range: ${batch_start}-${batch_start+batch_size-1})"
-            Channel.empty()
-        }
-    } catch (t) {
-        exit 1, "unexpected exception: ${t.asString()}"
-    }
-}
-
-def getMockRawReadsFromSampleSheet(){
-    try {
-        if (!isRunningFromSampleSheet()) {
-            exit 2, "required params (samplesheet) not found";
-        }
-        def myids = []
-
-        def filename = "${params.samplesheet}"
-
-        def row = 1
-
-        // subset of samplesheet: specifying nodes
-        def nodes =  params.containsKey('nodes') ? params.nodes : 1
-        def node =  params.containsKey('node') ? params.node : 0
-
-        def ex = executionMetadata()
-        
-        // subset of samplesheet: specifying indexes)
-        def batch_start = params.containsKey('batch_start') ? params.batch_start : -1
-        def batch_size = params.containsKey('batch_size') ? params.batch_size : 1
-        def batchEnd = batch_start + batch_size
-
-        def batch_exclude = params.containsKey('batch_exclude') ? params.batch_exclude.split(",").collect { it as int } : -1
-
-        def sampleSheetFile = new File(filename)
-        def firstSampleIndex = sampleSheetFile.readLines().findIndexOf { it.matches("^\\d.*")} + 1
-
-        if (firstSampleIndex != 0) {
-
-            sampleSheetFile.splitEachLine(",") {fields ->
-                if (row < firstSampleIndex) {
-                    row++
-                    return;
-                }      
-                def index = row
-                def consideringSamples = false
-                if (batch_start > -1) {
-                    if (index  >= batch_start && index < batchEnd && ! (index in batch_exclude)) {
-                        consideringSamples = true
-                    }
-                } else {
-                    consideringSamples = ((index % nodes) == node)
-                }
-                if (consideringSamples) {
-                    if (!fields[1]) {
-                        log.warn "DS not valorized in samplesheet, row: ${row}"
-                    } else {
-                        def cmp = fields[0].replaceAll("-", ".")
-                        def ds = fields[1]
-                        myids.add([ ds, "${ds}-${ex.dt}_${cmp}_R1_mock.fastq.gz", "${ds}-${ex.dt}_${cmp}_R2_mock.fastq.gz"])
-                    }
-                }
-                row++
-            }
-        }
-
-        def STEP = '0SQ_rawreads'
-        def METHOD = 'fastq' 
-
-        if (!myids.isEmpty()) {
-            Channel
-                .fromList(myids)
-                .map { 
-                   riscd = getRisCd([ds:it[0]], ex, STEP, METHOD)      
-                   [ riscd , [ file(it[1]), file(it[2])] ]
-                }
-        } else {
-            log.warn "Could not find any sample to process (rows range: ${batch_start}-${batch_start+batch_size-1})"
-            Channel.empty()
-        }
-    } catch (t) {
-        exit 1, "unexpected exception: ${t.asString()}"
-    }
-}
 
 def getTrimmedReads(optional){
     def allowedAcc = ['1PP_trimming', '1PP_hostdepl', '1PP_generated']
@@ -283,11 +128,10 @@ def _getReferences(optional, type, keyed, multi) {
     def crossValue = ""
     if (keyed) {
         // CROSSING PARAM
-        if (params.containsKey('riscd')) {
-            crossValue = parseRISCD(params.riscd).ds         
-        } else {
-            log.debug "using ref_code as cross parameter for references";
-        }
+        if (!params.containsKey('riscd')) {
+            exit 2, "one of: [ds, riscd] param should be provided";
+        } 
+        crossValue = parseRISCD(params.riscd).ds         
     }
     if (params.containsKey('references')) {
         assert params.references instanceof ArrayList
@@ -314,9 +158,8 @@ def _getReferences(optional, type, keyed, multi) {
     } 
 }
 
-def _getSingleReference(optional, type, refInput, sampleCrossValue) {
+def _getSingleReference(optional, type, refInput, crossValue) {
     def allowedAcc = ['2AS_mapping', '2AS_denovo', '2AS_import']
-    def crossValue = sampleCrossValue ?: refInput?.ref_cmp?.replaceAll("-", ".")
     if (refInput.containsKey('ref_cmp') && refInput.containsKey('ref_code') &&
           (
             (type == 'gb' && refInput.containsKey('ref_riscd_genbank') && refInput.ref_riscd_genbank)
@@ -428,21 +271,16 @@ def getParamIncludeChildren() {
 
 def _getParamAsValue(paramName, optional, defaultValue) {
     def res
-    if (paramName && params.containsKey(paramName) && params[paramName]?.toString()?.trim()) {
+    if (paramName && params.containsKey(paramName) && params[paramName] != '' && params[paramName] != null) {
         res = params[paramName]
     } else if (optional) {      
         res = defaultValue
     } else  {
         exit 2, "missing required param: $paramName";
     }  
-    // skip malicious content check when paramName starts with an underscore
-    // scripts using those parameters should keep in mind this
-    if (!paramName.startsWith('_')) {
-        // do not want possibily malicious chars inside
-        // Negative Lookbehind (?<![\w-]): Ensures ( is NOT immediately preceded by a word character (\w) or hyphen (-).
-        if (res != null && (res ==~ /(?s).*[;\$|&><\n].*/ || res ==~ /.*(?<![\w-])\(.*/ )) {
-            exit 2, "possibile malicious content for param '${paramName}', value: '${res}'"
-        }
+    // no malicious chars inside
+    if (res != null && res ==~ /(?s).*$[;|&><\(\)\n].*/) {
+        exit 2, "possibile malicious content for param '${paramName}', value: '${value}'"
     }
     return res
 }
@@ -476,22 +314,6 @@ def _getParam(paramName, optional, keyed){
     }
 }
 
-def getSpeciesFromMetadataOrParameter(ds) {
-     if (isRunningFromSampleSheet()) {
-         def result = getDsMetadata(ds).SPECIE
-         if (!result) {
-            exit 2, "metadata: 'SPECIE' not present in samplesheet"
-         }
-         return result
-     } else {
-         // do not change with ds
-         if (!params.containsKey('species')) {
-            exit 2, "param: 'species' not set"
-         }
-         return params.species
-     }
- }
-
 def getDS() {
     if (!params.containsKey('riscd')) {
         exit 2, "missing required params (riscd)";
@@ -515,7 +337,7 @@ def getResult(cmp, riscd, filePattern) {
         )        
         .toSortedList( { a, b -> flattenPath(a.getName()) <=> flattenPath(b.getName()) } )  
         .collect()
-        .map { [ riscd, it ] }        
+        .map { [ riscd, it ] }       
     } else {
         if (md.acc in ['0SQ_rawreads', '1PP_hostdepl', '1PP_trimming', '1PP_filtering', '1PP_downsampling', '1PP_generated']) {
             def pattern = "*.fastq*"
@@ -591,8 +413,8 @@ def getResult(cmp, riscd, filePattern) {
 }
 
 def _getAlleles(cmp, riscd, schema) {
-    def md = parseRISCD(riscd)  
-    def filePattern = "*_results_${params.allelic_profile_encoding }.tsv"
+    def md = parseRISCD(riscd)           
+    def filePattern = schema ? "*_results_${schema}.?sv" : "*results_alleles.?sv"
     def anno = cmp.substring(0,4)
     def path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${filePattern}"
     def resChannel = Channel.fromPath(path, checkIfExists: params.check_file_existence)
@@ -604,7 +426,7 @@ def _getAlleles(cmp, riscd, schema) {
 
 def getAllelicProfile(cmp, riscd, schema) {
     def md = parseRISCD(riscd)           
-    def filePattern = "*_results_${params.allelic_profile_encoding }.tsv"
+    def filePattern = schema ? "*_results_${schema}.?sv" : "*results_alleles.?sv"
     def anno = cmp.substring(0,4)
     def path = "${params.inputdir}/${anno}/${cmp}/${md.acc}/${md.ds}-${md.dt}_${md.met}/result/${filePattern}"
     def resChannel = Channel.fromPath(path, checkIfExists: params.check_file_existence)
@@ -663,7 +485,7 @@ def getInput() {
             } else {
                 res.mix(getInputFromPaths(val.key, val.paths))
             }
-        }         
+        }        
     } else if (params.containsKey('cmp') && params.containsKey('riscd')) {
         getResult(params.cmp, params.riscd, null)
     } else {
@@ -735,12 +557,20 @@ def optionalOrDefault(paramName, defaultValue) {
     _getParamAsValue(paramName, true, defaultValue)
 }
 
-def optionalOption(optionKey, paramName) {
-    def val = _getParamAsValue(paramName, true, '')
+def optionalOption(prefix, paramName) {
+    def val = _getParamAsValue(prefix + paramName, true, '')
     if (!val) {
         return '';
     } 
-    return " ${optionKey} ${val} "
+    return " --${paramName} ${val} "
+}
+
+def optionalOptionWithKey(prefix, optionKey, paramName) {
+    def val = _getParamAsValue(prefix + paramName, true, '')
+    if (!val) {
+        return '';
+    } 
+    return "--${optionKey} ${val}"
 }
 
 def isIonTorrent(reads) {
@@ -839,6 +669,9 @@ def getHostReference() {
         if (!params.containsKey('host')) {
             exit 2, "host reference code should be provided";
         }     
+        if (!params.containsKey('hosts_dir')) {
+            exit 2, "hosts_dir should be provided";
+        }          
         // CROSSING PARAM
         if (!params.containsKey('riscd')) {
             exit 2, "one of: [ds, riscd] param should be provided";

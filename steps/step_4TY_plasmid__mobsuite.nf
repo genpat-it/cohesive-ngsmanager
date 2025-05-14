@@ -11,9 +11,9 @@ def METHOD = 'mobsuite'
 def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process mobsuite {
-    container "nexus-prod.izs.intra:9091/bioinfo/mobsuite:3.1.4--c2c728b1a2"
+    container "ghcr.io/genpat-it/mobsuite:3.1.4--c2c728b1a2"
     memory { taskMemory( 4.GB, task.attempt ) }
-    cpus 32
+    cpus { [32, params.max_cpus as int].min() }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     input:
       tuple val(riscd_input), path(assembly)

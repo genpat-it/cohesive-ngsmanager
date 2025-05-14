@@ -1,11 +1,11 @@
 nextflow.enable.dsl=2
 
 include { parseMetadataFromFileName; executionMetadata;taskMemory } from '../functions/common.nf'
-include { isSarsCov2;isPositiveControlSarsCov2;isNegativeControlSarsCov2 } from '../functions/samplesheet'
-include { getSingleInput;isIlluminaPaired;isCompatibleWithSeqType } from '../functions/parameters'
+include { isSarsCov2;isPositiveControlSarsCov2;isNegativeControlSarsCov2 } from '../functions/sampletypes'
+include { param;getSingleInput;isIlluminaPaired;isCompatibleWithSeqType } from '../functions/parameters'
 include { stepInputs;getRisCd } from '../functions/common.nf'
 
-def KRAKEN2_DB="/bioinfonas/databases/PROGRAMS/kraken2/k2_pluspf_20210517"
+def KRAKEN2_DB = param('step_3TX_class__kraken2__db')
 
 def ex = executionMetadata()
 
@@ -15,7 +15,7 @@ def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process kraken2 {
     container "quay.io/biocontainers/kraken2:2.1.2--pl5262h7d875b9_0"
-    containerOptions = "-v /bioinfonas/databases:/bioinfonas/databases:ro"
+    containerOptions = "-v ${KRAKEN2_DB}:${KRAKEN2_DB}:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 62.GB, task.attempt ) }
     when:
@@ -44,7 +44,7 @@ process kraken2 {
 
 process braken2 {
     container "quay.io/biocontainers/bracken:2.6.1--py39h7cff6ad_2"
-    containerOptions = "-v /bioinfonas/databases:/bioinfonas/databases:ro -v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
+    containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro -v ${KRAKEN2_DB}:${KRAKEN2_DB}:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 3.GB, task.attempt ) }
     input:
@@ -70,7 +70,8 @@ process braken2 {
 workflow step_3TX_class__kraken2 {
     take: reads
     main:
-      kraken2(reads).report | braken2
+      report = kraken2(reads).report
+      braken2(report)
      emit:
        genus_report = braken2.out.genus_report
 }

@@ -33,7 +33,7 @@ def getPointfinderParam(gsp, map) {
 }
 
 process staramr {
-    container "nexus-prod.izs.intra:9091/bioinfo/staramr:0.9.1--8fe6b5a239"
+    container "ghcr.io/genpat-it/staramr:0.9.1--8fe6b5a239"
     containerOptions = "--user root"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 2.GB, task.attempt ) }

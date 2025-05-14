@@ -7,9 +7,9 @@ include { stepInputs;parseRISCD } from '../functions/common.nf'
 def ex = executionMetadata()
 
 process module_qc_nanoplot {
-    container 'quay.io/biocontainers/nanoplot:1.44.1--pyhdfd78af_0'
+    container 'quay.io/biocontainers/nanoplot:1.41.3--pyhdfd78af_0'
     memory { taskMemory( 2.GB, task.attempt ) }
-    cpus 8
+    cpus { [8, params.max_cpus as int].min() }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     maxForks 10
     when:

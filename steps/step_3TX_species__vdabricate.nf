@@ -1,10 +1,10 @@
 nextflow.enable.dsl=2
 
 include { parseMetadataFromFileName; executionMetadata; taskMemory } from '../functions/common.nf'
-include { getInput } from '../functions/parameters.nf'
+include { param;getInput } from '../functions/parameters.nf'
 include { stepInputs;getRisCd } from '../functions/common.nf'
 
-def abricateDBDir = "/biowork/databases/PROGRAMS/abricate"
+def abricateDBDir = param('step_3TX_species__vdabricate__db')
 
 def ex = executionMetadata()
 
@@ -14,7 +14,7 @@ def ENTRYPOINT = "step_${STEP}__${METHOD}"
 
 process abricate {
     container 'quay.io/biocontainers/abricate:0.9.8--h1341992_0'
-    containerOptions = "-v ${abricateDBDir}:${abricateDBDir}:ro"
+    containerOptions = " -v ${abricateDBDir}:${abricateDBDir}:ro"
     memory { taskMemory( 6.GB, task.attempt ) }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     input:

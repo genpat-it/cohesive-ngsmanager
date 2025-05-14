@@ -1,9 +1,10 @@
 nextflow.enable.dsl=2
 
-include {  flattenPath; parseMetadataFromFileName; executionMetadata;taskMemory } from '../functions/common.nf'
+include { flattenPath; parseMetadataFromFileName; executionMetadata;taskMemory } from '../functions/common.nf'
 include { stepInputs;getRisCd } from '../functions/common.nf'
+include { param } from '../functions/parameters.nf'
 
-FILTERABLE_REFERENCES_PATH ='/databases/REFERENCES/virus'
+FILTERABLE_REFERENCES_PATH = param('step_2AS_filtering__seqio')
 
 def ex = executionMetadata()
 
@@ -34,7 +35,7 @@ def isReferenceFilterable(refCode, _path) {
 }
 
 process filter {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 250.MB, task.attempt ) }

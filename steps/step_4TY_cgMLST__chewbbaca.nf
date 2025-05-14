@@ -1,35 +1,19 @@
 nextflow.enable.dsl=2
 
 include { parseMetadataFromFileName;executionMetadata;taskMemory;taskTime } from '../functions/common.nf'
-include { getInput;param;optional;optionalOption;optionalOrDefault;isIonTorrent } from '../functions/parameters.nf'
+include { getInput;param;optionalOrDefault;isIonTorrent } from '../functions/parameters.nf'
 include { stepInputs;getRisCd } from '../functions/common.nf'
 
 SPECIES_SCHEMA = [
-  mycobacterium_bovis: ['m_bovis_2891_230720'],
   listeria_monocytogenes : ['l_mono_chewie_1748_220623'],
-  campylobacter_jejuni : ['c_jejuni_678_180728'],
-  campylobacter_coli : ['c_coli_528_220722'],
-  staphylococcus_aureus : ['s_aureus_ridom_1861_210617'],
-  brucella_melitensis : ['b_melitensis_bme_2584_211118'],
-  klebsiella_pneumoniae : ['k_pneumoniae_pasteur_629_211129'],
   escherichia_coli : ['e_coli_chewie_2360_210531'],
-  salmonella_enterica : ['s_enterica_chewie_3255_210531'],
-  brucella : ['b_wide_1764_220709'],
-  bacillus_anthracis : ['b_anthracis_pubmlst_3803_231214']
+  salmonella_enterica : ['s_enterica_chewie_3255_210531']
 ]
 
 SCHEMAS = [
-  m_bovis_2891_230720: '/schemas/Mycobacterium_cgMLST_chewie.zip',
   l_mono_chewie_1748_220623 : "/schemas/Listeria_monocytogenes_Pasteur_cgMLST_2022-06-23T18_03_54.613576.zip",
-  c_jejuni_678_180728 : "/schemas/C_jejuni_zenodo_cgMLST_2018-07-28.zip",
-  c_coli_528_220722 : "/schemas/C_coli_wetransfer_cgMLST_2022-07-22.zip",
-  s_aureus_ridom_1861_210617 : "/schemas/S_aureus.zip",
-  b_melitensis_bme_2584_211118 : "/schemas/B_melitensis_chewb_final.zip",
-  k_pneumoniae_pasteur_629_211129 : "/schemas/K_pneumoniae_scgMLST629S.zip",
-  b_wide_1764_220709 : "/schemas/Brucella_wide.zip",
   e_coli_chewie_2360_210531 : "/schemas/Escherichia_coli_INNUENDO_wgMLST_2021-05-31T14_24_05.304225.zip",
-  s_enterica_chewie_3255_210531 : "/schemas/Salmonella_enterica_INNUENDO_cgMLST_2021-05-31T20_28_21.350919.zip",
-  b_anthracis_pubmlst_3803_231214 : "/schemas/Banthracis_cgMLST_chewie.zip"
+  s_enterica_chewie_3255_210531 : "/schemas/Salmonella_enterica_INNUENDO_cgMLST_2021-05-31T20_28_21.350919.zip"
 ]
 
 CHEWBBACA_SINGLE_END_PARAMS = [
@@ -96,10 +80,10 @@ def getSchema(gsp, schema) {
 }
 
 process chewbbaca {
-    container "${LOCAL_REGISTRY}/bioinfo/chewbbaca-w-schemas:2.8.5--526773da77"
+    container "ghcr.io/genpat-it/chewbbaca-w-chewie-schemas:2.8.5--16b816c96d"
     memory { taskMemory( 8.GB, task.attempt ) }
     time { taskTime( 30.m, task.attempt ) }    
-    cpus 32
+    cpus { [32, params.max_cpus as int].min() }
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     when:
       getSchema(genus_species, schema)
@@ -127,15 +111,12 @@ process chewbbaca {
       schemaPath = SCHEMAS.get(schemaName) 
       newAlleleKey = assembly.getName().replaceAll('_', '-')
       speciesSpecificParams = getExtraParams(schemaName)
-      opts = optionalOption('--bsr', 'chewbbaca__bsr')
-      opts += optionalOption('--st', 'chewbbaca__st')      
-      opts += optional('chewbbaca__extra')
       """
         #!/bin/bash -euo pipefail
         unzip ${schemaPath} -d schema > /dev/null
         chmod -R 777 schema
         mkdir input && cp ${assembly} input/
-        chewBBACA.py AlleleCall -i input -g schema -o results --cpu ${task.cpus} --force-continue --verbose ${speciesSpecificParams} ${opts}
+        chewBBACA.py AlleleCall -i input -g schema -o results --cpu ${task.cpus} --force-continue --verbose ${speciesSpecificParams}
         grep "${newAlleleKey}" schema/*.fasta -A1 -h | grep -v "\\-\\-" > ${base}_new_alleles.txt || echo "no INF alleles found"
         mv results/*/results_alleles.tsv ${base}_results_alleles.tsv
         mv results/*/results_contigsInfo.tsv ${base}_results_contigsInfo.tsv
@@ -168,7 +149,7 @@ process chewbbaca_check {
 }
 
 process hashing {
-    container "${LOCAL_REGISTRY}/bioinfo/hashing:1.0--29180a232f"    
+    container "ghcr.io/genpat-it/hashing:1.0--29180a232f"    
     memory { taskMemory( 2.GB, task.attempt ) }
     time { taskTime( 10.m, task.attempt ) }    
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"

@@ -1,7 +1,6 @@
 nextflow.enable.dsl=2
 
 include { extractDsRef;getEmpty;flattenPath; parseMetadataFromFileName; executionMetadata; extractKey;taskMemory } from '../functions/common.nf'
-include { isRunningFromSampleSheet } from '../functions/samplesheet.nf'
 include { getSingleInput;getReferences;getReferenceCodes;isIlluminaPaired;isCompatibleWithSeqType;isIonTorrent;isSegmentedMapping } from '../functions/parameters.nf'
 include { stepInputs;getRisCd } from '../functions/common.nf'
 
@@ -54,7 +53,7 @@ def canBeAggregated(actual) {
 }
 
 process snippy {
-    container "${LOCAL_REGISTRY}/bioinfo/snippy:4.5.1--7be4a1c45a"
+    container "ghcr.io/genpat-it/snippy:4.5.1--7be4a1c45a"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 8.GB, task.attempt ) }
     maxForks 4
@@ -168,7 +167,6 @@ process samtools_depth {
       tuple path("${base_ref}.coverage"), val(reference), emit: coverage
       path '*.sh', hidden: true
     publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex_dt}_${METHOD}/meta", pattern: '.command.sh', saveAs: { "${base_ref}_samtools_depth.cfg" }
-    publishDir mode: 'rellink', "${params.outdir}/${md.anno}/${md.cmp}/${STEP}/${md.ds}-${ex_dt}_${METHOD}/meta", pattern: '.coverage', saveAs: { "${base_ref}.coverage.txt" }
     script:
       md = parseMetadataFromFileName(bam.getName())
       ex_dt = getExDt(reference, ex)
@@ -180,7 +178,7 @@ process samtools_depth {
 }
 
 process coverage_minmax {
-    container "${LOCAL_REGISTRY}/bioinfo/samtools:0.1.19--f3869562fe"
+    container "ghcr.io/genpat-it/samtools:0.1.19--f3869562fe"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 4.GB, task.attempt ) }
@@ -207,7 +205,7 @@ process coverage_minmax {
 }
 
 process coverage_check {
-    container "${LOCAL_REGISTRY}/bioinfo/python3:3.10.1--29cf21c1f1"
+    container "ghcr.io/genpat-it/python3:3.10.1--29cf21c1f1"
     containerOptions = "-v ${workflow.projectDir}/scripts/${ENTRYPOINT}:/scripts:ro"
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 200.MB, task.attempt ) }

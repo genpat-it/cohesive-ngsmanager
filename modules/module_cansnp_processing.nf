@@ -4,14 +4,15 @@ nextflow.enable.dsl=2
 include { getInput } from '../functions/parameters.nf' //; getGenusSpecies
 include { extractDsRef; extractKey } from '../functions/common.nf'
 include { module_reads_processing } from '../modules/module_reads_processing.nf'
-include { step_2AS_mapping__snippy } from '../steps/step_2AS_mapping__snippy.nf'
-include { step_3TX_class__confindr } from '../steps/step_3TX_class__confindr.nf'
-include { step_4TY_distance__mash } from '../steps/step_4TY_distance__mash.nf'
+include { snippy; samtools_pileup; samtools_depth; coverage_minmax } from '../steps/step_2AS_mapping__snippy.nf'
+include { confindr } from '../steps/step_3TX_class__confindr.nf'
+include { mash } from '../steps/step_4TY_distance__mash.nf'
 
 
 // variables to get reference genome
-def referenceCode = 'chromosomeI-II_AE014291-AE014292.gbk'
+def referenceCode = 'chromosomeI-II_AE014291-AE014292'
 def referencePath = "${params.assets_dir}/module_cansnp_processing/chromosomeI-II_AE014291-AE014292.gbk"
+
 
 // workflow definition
 workflow module_cansnp_processing {
@@ -22,17 +23,20 @@ workflow module_cansnp_processing {
 // reads_processing execution (trimming with fastp + QC with fastQC for %Q30)
       module_reads_processing(rawReads)
       trimmedReads = module_reads_processing.out.trimmed_with_data
-// step_2AS_mapping__snippy
+// snippy execution
       trimmedReads.multiMap {
         trimmed: it
         reference: [ '-', referenceCode, file(referencePath) ]
       }.set { trAndRef }
-      step_2AS_mapping__snippy(trAndRef.trimmed, trAndRef.reference)
-
+      bam = snippy(trAndRef.trimmed, trAndRef.reference).bam
+// samtools and python scripts execution for quality metrics (Horizontal and Vertical Cov) 
+      pileup = samtools_pileup(bam).pileup
+      coverage_minmax(bam, 'snippy')
+      coverage = samtools_depth(bam, 'snippy').coverage
 // confindr execution
-      step_3TX_class__confindr(trimmedReads)
+      confindr(trimmedReads)
 // creation of single-sample msh files using mash sketch
-      step_4TY_distance__mash(trimmedReads)
+      mash(trimmedReads)
 }
 
 

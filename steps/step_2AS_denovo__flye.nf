@@ -14,7 +14,7 @@ process flye {
     container "quay.io/biocontainers/flye:2.9.2--py310h2b6aa90_2"    
     tag "${md?.cmp}/${md?.ds}/${md?.dt}"
     memory { taskMemory( 32.GB, task.attempt ) }
-    cpus 16   
+    cpus { [16, params.max_cpus as int].min() }   
     when:
       isCompatibleWithSeqType(reads, ['nanopore'], task.process)
     input:
