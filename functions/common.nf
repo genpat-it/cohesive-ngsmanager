@@ -249,6 +249,15 @@ def taskMemory(obj, attempt) {
         return obj
     }
 }
+def taskCpus(obj, attempt) {
+    try {
+        def max_cpus = params.max_cpus as int
+        return obj > max_cpus ? max_cpus : obj
+    } catch (t) {
+        println "taskMemory: unexpected exception: ${t.asString()}"
+        return obj
+    }
+}
 
 def taskTime(obj, attempt) {
     try {
